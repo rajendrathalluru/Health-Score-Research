@@ -23,10 +23,12 @@ export default function Layout({ children }: LayoutProps) {
   const [user, setUser]           = useState<any>({});
   const [dropOpen, setDropOpen]   = useState(false);
   const [mobileOpen, setMobile]   = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   // Re-read user from localStorage whenever route changes (picks up profile saves)
   useEffect(() => {
     setUser(JSON.parse(localStorage.getItem('user') || '{}'));
+    setAvatarFailed(false);
   }, [location.pathname]);
 
   // Close dropdown on outside click
@@ -94,8 +96,13 @@ export default function Layout({ children }: LayoutProps) {
                 >
                   {/* Avatar */}
                   <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                    {avatarUrl && !avatarFailed ? (
+                      <img
+                        src={avatarUrl}
+                        alt="avatar"
+                        className="w-full h-full object-cover"
+                        onError={() => setAvatarFailed(true)}
+                      />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600
                                       flex items-center justify-center text-white text-[10px] font-bold">

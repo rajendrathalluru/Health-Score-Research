@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { API_BASE } from '../config/api';
 
 // Handles Google OAuth redirect — saves token and redirects to dashboard
 export default function AuthCallback() {
@@ -8,23 +9,47 @@ export default function AuthCallback() {
     if (processed.current) return;
     processed.current = true;
 
-    const params = new URLSearchParams(window.location.search);
-    const token  = params.get('token');
-    const user   = params.get('user');
-    const error  = params.get('error');
+    const finishGoogleLogin = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const user = params.get('user');
+      const error = params.get('error');
 
-    if (error || !token || !user) {
-      window.location.href = '/login?error=google_failed';
-      return;
-    }
+      if (error || !token) {
+        window.location.href = '/login?error=google_failed';
+        return;
+      }
 
-    try {
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', decodeURIComponent(user));
-      window.location.href = '/dashboard';
-    } catch {
-      window.location.href = '/login?error=google_failed';
-    }
+      try {
+        localStorage.setItem('token', token);
+
+        if (user) {
+          // URLSearchParams already decodes the query value once.
+          JSON.parse(user);
+          localStorage.setItem('user', user);
+          window.location.href = '/dashboard';
+          return;
+        }
+
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch authenticated user');
+        }
+
+        const data = await res.json();
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+        window.location.href = '/dashboard';
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login?error=google_failed';
+      }
+    };
+
+    void finishGoogleLogin();
   }, []);
 
   return (

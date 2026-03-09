@@ -77,6 +77,7 @@ export default function ProfilePage() {
   const [saving, setSaving]   = useState(false);
   const [saved, setSaved]     = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   useEffect(() => { fetchProfile(); }, []);
 
@@ -96,6 +97,7 @@ export default function ProfilePage() {
 
   const hydrate = (d: any) => {
     setProfile(d);
+    setAvatarFailed(false);
     setForm({
       name:           d.name         ?? '',
       gender:         d.gender       ?? '',
@@ -169,7 +171,19 @@ export default function ProfilePage() {
           <div className="relative flex-shrink-0">
             <div className="w-24 h-24 rounded-3xl overflow-hidden shadow-lg ring-4 ring-white">
               {avatarUrl ? (
-                <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                avatarUrl && !avatarFailed ? (
+                  <img
+                    src={avatarUrl}
+                    alt="avatar"
+                    className="w-full h-full object-cover"
+                    onError={() => setAvatarFailed(true)}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-violet-500 to-blue-500
+                                  flex items-center justify-center text-white text-2xl font-bold">
+                    {form.name ? initials(form.name) : '?'}
+                  </div>
+                )
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-violet-500 to-blue-500
                                 flex items-center justify-center text-white text-2xl font-bold">
