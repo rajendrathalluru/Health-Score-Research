@@ -10,6 +10,7 @@ import ProgressPage from './pages/ProgressPage';
 import AuthCallback from './pages/AuthCallback';
 import HealthLog from './pages/HealthLog';
 import ProfilePage from './pages/ProfilePage';
+import { API_BASE } from './config/api';
 
 
 
@@ -31,7 +32,7 @@ function FitbitCallback() {
       return;
     }
 
-    window.location.href = `http://localhost:3001/api/fitbit/callback?code=${code}&state=${state}`;
+    window.location.href = `${API_BASE}/fitbit/callback?code=${code}&state=${state}`;
   }, []);
 
   return (

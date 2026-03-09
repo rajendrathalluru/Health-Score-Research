@@ -16,7 +16,7 @@ import measurementRoutes from './routes/measurements.js';
 import progressRoutes from './routes/progress.js';
 import fitbitRoutes from './routes/fitbit.js';
 import dailyLogsRoutes   from './routes/dailyLogs.js';    
-import weeklyscoreRoutes from './routes/weeklyscore.js';  
+import weeklyscoreRoutes from './routes/weeklyScore.js';  
 import profileRoutes from './routes/profile.js';
 
 

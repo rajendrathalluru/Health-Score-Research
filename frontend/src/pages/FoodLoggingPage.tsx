@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
+import { API_BASE } from '../config/api';
 
 interface Food {
   fdcId: number;
@@ -45,7 +46,7 @@ export default function FoodLoggingPage() {
   const loadDailyEntries = async () => {
     try {
       const response = await fetch(
-        `http://localhost:3001/api/food/daily/${user.id}/${today}`,
+        `${API_BASE}/food/daily/${user.id}/${today}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -71,7 +72,7 @@ export default function FoodLoggingPage() {
     console.log('Searching for:', searchQuery);
     
     try {
-      const url = `http://localhost:3001/api/food/search?query=${encodeURIComponent(searchQuery)}`;
+      const url = `${API_BASE}/food/search?query=${encodeURIComponent(searchQuery)}`;
       console.log('Fetching:', url);
       
       const response = await fetch(url);
@@ -103,7 +104,7 @@ export default function FoodLoggingPage() {
   const addFood = async (food: Food) => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/food/log', {
+      const response = await fetch(`${API_BASE}/food/log`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import { API_BASE } from '../config/api';
 
 export default function MeasurementsPage() {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ export default function MeasurementsPage() {
   const loadTodaysMeasurement = async () => {
     try {
       const response = await fetch(
-        `http://localhost:3001/api/measurements/${user.id}/${today}`,
+        `${API_BASE}/measurements/${user.id}/${today}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -54,7 +55,7 @@ export default function MeasurementsPage() {
     try {
       // Update height if provided
       if (formData.heightCm) {
-        await fetch(`http://localhost:3001/api/measurements/user/${user.id}/height`, {
+        await fetch(`${API_BASE}/measurements/user/${user.id}/height`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -65,7 +66,7 @@ export default function MeasurementsPage() {
       }
 
       // Save measurements
-      const response = await fetch('http://localhost:3001/api/measurements/log', {
+      const response = await fetch(`${API_BASE}/measurements/log`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

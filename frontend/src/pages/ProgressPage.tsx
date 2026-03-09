@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { API_BASE } from '../config/api';
 
 interface ScoreData {
   date: string;
@@ -37,13 +38,13 @@ export default function ProgressPage() {
     setLoading(true);
     try {
       const [scoresRes, weightRes, nutritionRes] = await Promise.all([
-        fetch(`http://localhost:3001/api/progress/scores/${user.id}?days=${days}`, {
+        fetch(`${API_BASE}/progress/scores/${user.id}?days=${days}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`http://localhost:3001/api/progress/weight/${user.id}?days=${days}`, {
+        fetch(`${API_BASE}/progress/weight/${user.id}?days=${days}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`http://localhost:3001/api/progress/nutrition/${user.id}?days=${days}`, {
+        fetch(`${API_BASE}/progress/nutrition/${user.id}?days=${days}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);

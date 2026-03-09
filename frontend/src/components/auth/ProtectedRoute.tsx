@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
+import { API_BASE } from '../../config/api';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -21,7 +22,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
 
     try {
-      const res = await fetch('http://localhost:3001/api/auth/me', {
+      const res = await fetch(`${API_BASE}/auth/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE } from '../config/api';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/auth/register', {
+      const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -63,7 +64,7 @@ export default function RegisterPage() {
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
-    window.location.href = 'http://localhost:3001/api/auth/google';
+    window.location.href = `${API_BASE}/auth/google`;
   };
 
   return (

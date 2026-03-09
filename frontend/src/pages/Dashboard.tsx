@@ -4,8 +4,7 @@ import MainScoreDisplay from '../components/dashboard/MainScoreDisplay';
 import ScoreCard from '../components/dashboard/ScoreCard';
 import StatCard from '../components/dashboard/StatCard';
 import ManualActivityInput from '../components/dashboard/ManualActivityInput';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../config/api';
 
 // Monday of the current week (YYYY-MM-DD)
 function getCurrentWeekStart(): string {
