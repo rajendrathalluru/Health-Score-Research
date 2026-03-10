@@ -82,7 +82,7 @@ export default function Layout({ children }: LayoutProps) {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    navigate('/login');
+    navigate('/');
   };
 
   const isActive = (href: string) => location.pathname === href;
