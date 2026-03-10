@@ -21,25 +21,6 @@ export default function RegisterPage() {
     }
   }, []);
 
-  const hydrateUserSession = async (token: string, fallbackUser?: unknown) => {
-    try {
-      const res = await fetch(`${API_BASE}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.success && data.data?.user) {
-        localStorage.setItem('user', JSON.stringify(data.data.user));
-        return;
-      }
-    } catch {
-      // Fall back to register response user below.
-    }
-
-    if (fallbackUser) {
-      localStorage.setItem('user', JSON.stringify(fallbackUser));
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -71,9 +52,7 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (data.success) {
-        localStorage.setItem('token', data.data.token);
-        await hydrateUserSession(data.data.token, data.data.user);
-        navigate('/dashboard', { replace: true });
+        navigate('/login?registered=1', { replace: true });
       } else {
         setError(data.message || 'Registration failed');
       }

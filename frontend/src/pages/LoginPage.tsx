@@ -7,6 +7,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -15,6 +16,9 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('error') === 'google_failed') {
       setError('Google sign in failed. Please try again.');
+    }
+    if (params.get('registered') === '1') {
+      setInfo('Account created successfully. Sign in with your email and password.');
     }
   }, []);
 
@@ -40,6 +44,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -125,6 +130,12 @@ export default function LoginPage() {
             {error && (
               <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
                 <p className="text-sm text-rose-700">{error}</p>
+              </div>
+            )}
+
+            {info && (
+              <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <p className="text-sm text-emerald-700">{info}</p>
               </div>
             )}
 
