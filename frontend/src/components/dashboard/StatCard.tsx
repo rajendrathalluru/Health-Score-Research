@@ -8,23 +8,23 @@ interface StatCardProps {
 
 export default function StatCard({ label, value, subtitle, change, changeType }: StatCardProps) {
   const changeColors = {
-    positive: 'text-green-600 bg-green-50',
-    neutral: 'text-gray-600 bg-gray-50',
-    negative: 'text-red-600 bg-red-50'
+    positive: 'text-emerald-700 bg-emerald-50 border-emerald-100',
+    neutral: 'text-stone-600 bg-stone-50 border-stone-200',
+    negative: 'text-rose-700 bg-rose-50 border-rose-100'
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <div className="flex justify-between items-start mb-4">
-        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
-        <span className={`text-xs font-medium px-2 py-1 rounded ${changeColors[changeType]}`}>
+    <div className="rounded-[18px] border border-stone-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex justify-between items-start gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">{label}</span>
+        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${changeColors[changeType]}`}>
           {change}
         </span>
       </div>
-      <div className="mb-1">
-        <span className="text-3xl font-semibold text-gray-900">{value}</span>
+      <div className="mb-1 leading-none">
+        <span className="text-2xl font-semibold tracking-tight text-stone-950 sm:text-3xl">{value}</span>
       </div>
-      <p className="text-sm text-gray-500">{subtitle}</p>
+      <p className="text-xs leading-5 text-stone-500">{subtitle}</p>
     </div>
   );
 }

@@ -5,7 +5,8 @@ import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
 import FoodLoggingPage from './pages/FoodLoggingPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import MeasurementsPage from './pages/MeasurementsPage';
+import ActivityPage from './pages/ActivityPage';
+import BodyMetricsPage from './pages/BodyMetricsPage';
 import ProgressPage from './pages/ProgressPage';
 import AuthCallback from './pages/AuthCallback';
 import HealthLog from './pages/HealthLog';
@@ -77,10 +78,18 @@ function App() {
           }
         />
         <Route
-          path="/measurements"
+          path="/activity"
           element={
             <ProtectedRoute>
-              <MeasurementsPage />
+              <ActivityPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/body-metrics"
+          element={
+            <ProtectedRoute>
+              <BodyMetricsPage />
             </ProtectedRoute>
           }
         />

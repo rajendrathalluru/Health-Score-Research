@@ -1,180 +1,350 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Area,
+  AreaChart,
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import Layout from '../components/layout/Layout';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { API_BASE } from '../config/api';
 
-interface ScoreData {
+interface ScorePoint {
+  isoDate: string;
   date: string;
   score: number;
+  maxScore: number;
+  risk: string;
 }
 
-interface WeightData {
+interface BodyPoint {
+  isoDate: string;
   date: string;
-  weight: number;
-  bmi: number;
+  weight: number | null;
+  waist: number | null;
+  bmi: number | null;
 }
 
-interface NutritionData {
+interface ActivityPoint {
+  isoDate: string;
   date: string;
-  calories: number;
-  fiber: number;
+  mvpa: number;
+  steps: number;
+}
+
+function normalizeDateValue(value: unknown): Date | null {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00` : raw;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateLabel(value: unknown, withYear = false) {
+  const parsed = normalizeDateValue(value);
+  if (!parsed) return 'Invalid date';
+
+  return parsed.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(withYear ? { year: 'numeric' } : {}),
+  });
+}
+
+function formatSignedDelta(value: number) {
+  if (value === 0) return 'No change';
+  const abs = Math.abs(value).toFixed(1);
+  return value > 0 ? `+${abs}` : `-${abs}`;
 }
 
 export default function ProgressPage() {
-  const [scoreHistory, setScoreHistory] = useState<ScoreData[]>([]);
-  const [weightHistory, setWeightHistory] = useState<WeightData[]>([]);
-  const [nutritionHistory, setNutritionHistory] = useState<NutritionData[]>([]);
-  const [days, setDays] = useState(30);
+  const [scoreHistory, setScoreHistory] = useState<ScorePoint[]>([]);
+  const [bodyHistory, setBodyHistory] = useState<BodyPoint[]>([]);
+  const [activityHistory, setActivityHistory] = useState<ActivityPoint[]>([]);
+  const [days, setDays] = useState(90);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
+  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
   useEffect(() => {
-    fetchHistory();
+    void fetchHistory();
   }, [days]);
 
   const fetchHistory = async () => {
     setLoading(true);
+    setError(null);
+
     try {
-      const [scoresRes, weightRes, nutritionRes] = await Promise.all([
-        fetch(`${API_BASE}/progress/scores/${user.id}?days=${days}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE}/progress/weight/${user.id}?days=${days}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE}/progress/nutrition/${user.id}?days=${days}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+      const [scoresRes, bodyRes, activityRes] = await Promise.all([
+        fetch(`${API_BASE}/progress/scores?days=${days}`, { headers }),
+        fetch(`${API_BASE}/progress/body-metrics?days=${days}`, { headers }),
+        fetch(`${API_BASE}/progress/activity?days=${Math.min(days, 90)}`, { headers }),
       ]);
 
-      const scoresData = await scoresRes.json();
-      const weightData = await weightRes.json();
-      const nutritionData = await nutritionRes.json();
+      const [scoresData, bodyData, activityData] = await Promise.all([
+        scoresRes.json(),
+        bodyRes.json(),
+        activityRes.json(),
+      ]);
 
-      if (scoresData.success) {
-        const formatted: ScoreData[] = scoresData.data.map((item: any) => ({
-          date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          score: parseFloat(item.total_score)
-        }));
-        setScoreHistory(formatted);
+      if (!scoresRes.ok || !bodyRes.ok || !activityRes.ok) {
+        throw new Error(
+          scoresData.message || bodyData.message || activityData.message || 'Failed to load progress data'
+        );
       }
 
-      if (weightData.success) {
-        const formatted: WeightData[] = weightData.data.map((item: any) => ({
-          date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          weight: parseFloat(item.weight_kg),
-          bmi: parseFloat(item.bmi)
-        }));
-        setWeightHistory(formatted);
-      }
+      setScoreHistory(
+        (scoresData.data ?? []).map((item: any) => ({
+          isoDate: String(item.week_start_date ?? ''),
+          date: formatDateLabel(item.week_start_date),
+          score: Number(item.total_score ?? 0),
+          maxScore: Number(item.max_possible_score ?? 7),
+          risk: item.risk_level ?? 'High',
+        }))
+      );
 
-      if (nutritionData.success) {
-        const formatted: NutritionData[] = nutritionData.data.map((item: any) => ({
-          date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          calories: parseInt(item.total_calories),
-          fiber: parseFloat(item.total_fiber)
-        }));
-        setNutritionHistory(formatted);
-      }
-    } catch (error) {
-      console.error('Failed to fetch history:', error);
+      setBodyHistory(
+        (bodyData.data ?? []).map((item: any) => ({
+          isoDate: String(item.date ?? ''),
+          date: formatDateLabel(item.date),
+          weight: item.weight_kg !== null && item.weight_kg !== undefined ? Number(item.weight_kg) : null,
+          waist: item.waist_cm !== null && item.waist_cm !== undefined ? Number(item.waist_cm) : null,
+          bmi: item.bmi !== null && item.bmi !== undefined ? Number(item.bmi) : null,
+        }))
+      );
+
+      setActivityHistory(
+        (activityData.data ?? []).map((item: any) => ({
+          isoDate: String(item.date ?? ''),
+          date: formatDateLabel(item.date),
+          mvpa: Number(item.mvpa_minutes ?? 0),
+          steps: Number(item.steps ?? 0),
+        }))
+      );
+    } catch (fetchError) {
+      console.error('Failed to fetch progress history:', fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : 'Failed to load progress data');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center py-12">
-            <div className="text-gray-500">Loading progress data...</div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  const summary = useMemo(() => {
+    const latestScore = scoreHistory[scoreHistory.length - 1] ?? null;
+    const previousScore = scoreHistory.length > 1 ? scoreHistory[scoreHistory.length - 2] : null;
+    const latestBody = [...bodyHistory].reverse().find((item) => item.weight !== null || item.waist !== null) ?? null;
+    const activityTotal = activityHistory.reduce((sum, item) => sum + item.mvpa, 0);
+    const avgActivity = activityHistory.length ? Math.round(activityTotal / activityHistory.length) : 0;
+
+    return {
+      latestScore,
+      scoreDelta: latestScore && previousScore ? latestScore.score - previousScore.score : 0,
+      latestBody,
+      activityTotal,
+      avgActivity,
+    };
+  }, [activityHistory, bodyHistory, scoreHistory]);
+
+  const hasAnyData = scoreHistory.length || bodyHistory.length || activityHistory.length;
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
+      <div className="min-h-screen bg-stone-50">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Progress Tracking</h1>
-              <p className="text-sm text-gray-500 mt-1">View your health trends over time</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-400">Progress</p>
+              <h1 className="mt-1.5 text-[1.75rem] font-semibold tracking-tight text-stone-950 sm:text-[2rem]">Progress</h1>
+              <p className="mt-1 text-xs sm:text-sm text-stone-500">Weekly score trend, activity history, and body metrics from the current data model.</p>
             </div>
-            <select
-              value={days}
-              onChange={(e) => setDays(parseInt(e.target.value))}
-              className="px-4 py-2 border border-gray-300 rounded-lg"
-            >
-              <option value={7}>Last 7 days</option>
-              <option value={30}>Last 30 days</option>
-              <option value={90}>Last 90 days</option>
-            </select>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-stone-500">Range</span>
+              <select
+                value={days}
+                onChange={(e) => setDays(parseInt(e.target.value, 10))}
+                className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 outline-none focus:border-stone-400"
+              >
+                <option value={30}>30 days</option>
+                <option value={90}>90 days</option>
+                <option value={180}>180 days</option>
+              </select>
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-6">
-          {scoreHistory.length > 0 && (
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">WCRF/AICR Score Trend</h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={scoreHistory}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis domain={[0, 7]} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={2} name="Daily Score" />
-                </LineChart>
-              </ResponsiveContainer>
+          {error && (
+            <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
             </div>
           )}
 
-          {weightHistory.length > 0 && (
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Weight & BMI Trend</h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={weightHistory}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip />
-                  <Legend />
-                  <Line yAxisId="left" type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={2} name="Weight (kg)" />
-                  <Line yAxisId="right" type="monotone" dataKey="bmi" stroke="#f59e0b" strokeWidth={2} name="BMI" />
-                </LineChart>
-              </ResponsiveContainer>
+          {loading ? (
+            <div className="flex min-h-[320px] items-center justify-center rounded-[24px] border border-stone-200 bg-white">
+              <div className="flex items-center gap-3 text-stone-500">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-stone-300 border-t-stone-700" />
+                Loading progress data...
+              </div>
             </div>
-          )}
+          ) : !hasAnyData ? (
+            <div className="rounded-[24px] border border-stone-200 bg-white px-6 py-14 text-center">
+              <h2 className="text-lg font-semibold text-stone-950">No progress data yet</h2>
+              <p className="mt-2 text-sm text-stone-500">
+                Complete a weekly questionnaire and log activity or body metrics to start seeing trends here.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-400">Latest score</p>
+                  <div className="mt-2 flex items-end gap-2">
+                    <span className="text-3xl font-semibold tracking-tight text-stone-950">
+                      {summary.latestScore ? summary.latestScore.score.toFixed(1) : '—'}
+                    </span>
+                    <span className="pb-1 text-sm text-stone-400">
+                      / {summary.latestScore?.maxScore ?? 7}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-xs text-stone-500">
+                    {summary.latestScore ? `${summary.latestScore.risk} risk · ${formatSignedDelta(summary.scoreDelta)} vs prior entry` : 'No weekly score yet'}
+                  </div>
+                </div>
 
-          {nutritionHistory.length > 0 && (
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Nutrition Trend</h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={nutritionHistory}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip />
-                  <Legend />
-                  <Line yAxisId="left" type="monotone" dataKey="calories" stroke="#8b5cf6" strokeWidth={2} name="Calories" />
-                  <Line yAxisId="right" type="monotone" dataKey="fiber" stroke="#22c55e" strokeWidth={2} name="Fiber (g)" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+                <div className="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-400">Activity average</p>
+                  <div className="mt-2 text-3xl font-semibold tracking-tight text-stone-950">{summary.avgActivity}</div>
+                  <div className="mt-1 text-xs text-stone-500">Average MVPA minutes per logged day in this range</div>
+                </div>
 
-          {scoreHistory.length === 0 && weightHistory.length === 0 && nutritionHistory.length === 0 && (
-            <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-              <p className="text-gray-500">No data available yet. Start tracking to see your progress!</p>
-            </div>
+                <div className="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-400">Latest body entry</p>
+                  <div className="mt-2 text-lg font-semibold tracking-tight text-stone-950">
+                    {summary.latestBody?.weight !== null && summary.latestBody?.weight !== undefined
+                      ? `${summary.latestBody.weight.toFixed(1)} kg`
+                      : '—'}
+                  </div>
+                  <div className="mt-1 text-xs text-stone-500">
+                    {summary.latestBody?.waist !== null && summary.latestBody?.waist !== undefined
+                      ? `Waist ${summary.latestBody.waist.toFixed(1)} cm`
+                      : 'No waist saved yet'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-[24px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+                  <div className="mb-4 flex flex-col gap-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Weekly score</p>
+                    <h2 className="text-lg font-semibold tracking-tight text-stone-950">Score trend</h2>
+                    <p className="text-sm text-stone-500">Shows the actual weekly questionnaire score stored for each completed week.</p>
+                  </div>
+                  <div className="h-[280px] sm:h-[320px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={scoreHistory}>
+                        <defs>
+                          <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#0f172a" stopOpacity={0.22} />
+                            <stop offset="95%" stopColor="#0f172a" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke="#e7e5e4" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
+                        <YAxis domain={[0, 7]} tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
+                          <Tooltip
+                            formatter={(value) => [`${Number(value ?? 0).toFixed(1)} / 7`, 'Score']}
+                            labelFormatter={(_, payload) => payload?.[0]?.payload?.isoDate ? formatDateLabel(payload[0].payload.isoDate, true) : ''}
+                          />
+                        <ReferenceLine y={3.5} stroke="#f59e0b" strokeDasharray="4 4" />
+                        <ReferenceLine y={5.25} stroke="#16a34a" strokeDasharray="4 4" />
+                        <Area type="monotone" dataKey="score" stroke="#111827" strokeWidth={2.5} fill="url(#scoreFill)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+                  <div className="rounded-[24px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+                    <div className="mb-4 flex flex-col gap-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Activity</p>
+                      <h2 className="text-lg font-semibold tracking-tight text-stone-950">Daily activity trend</h2>
+                      <p className="text-sm text-stone-500">Bars show MVPA minutes. The line shows steps when available.</p>
+                    </div>
+                    <div className="h-[280px] sm:h-[320px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={activityHistory}>
+                          <CartesianGrid stroke="#e7e5e4" vertical={false} />
+                          <XAxis dataKey="date" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
+                          <YAxis yAxisId="left" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
+                          <YAxis yAxisId="right" orientation="right" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
+                          <Tooltip
+                            formatter={(value, name) => {
+                              const numeric = Number(value ?? 0);
+                              return [name === 'steps' ? numeric.toLocaleString() : `${numeric} min`, name === 'steps' ? 'Steps' : 'MVPA'];
+                            }}
+                            labelFormatter={(_, payload) => payload?.[0]?.payload?.isoDate ? formatDateLabel(payload[0].payload.isoDate, true) : ''}
+                          />
+                          <Legend />
+                          <Bar yAxisId="left" dataKey="mvpa" fill="#111827" radius={[6, 6, 0, 0]} name="MVPA" />
+                          <Line yAxisId="right" type="monotone" dataKey="steps" stroke="#d97706" strokeWidth={2} dot={false} name="Steps" />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[24px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+                    <div className="mb-4 flex flex-col gap-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Body metrics</p>
+                      <h2 className="text-lg font-semibold tracking-tight text-stone-950">Weight and waist trend</h2>
+                      <p className="text-sm text-stone-500">Latest saved body metrics in this date range. BMI is shown in the tooltip.</p>
+                    </div>
+                    <div className="h-[280px] sm:h-[320px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={bodyHistory}>
+                          <CartesianGrid stroke="#e7e5e4" vertical={false} />
+                          <XAxis dataKey="date" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
+                          <YAxis yAxisId="left" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
+                          <YAxis yAxisId="right" orientation="right" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
+                          <Tooltip
+                            formatter={(value, name) => {
+                              const numeric = Number(value ?? 0);
+                              if (name === 'Weight') return [`${numeric.toFixed(1)} kg`, name];
+                              if (name === 'Waist') return [`${numeric.toFixed(1)} cm`, name];
+                              return [numeric, name];
+                            }}
+                            labelFormatter={(_, payload) => {
+                              const row = payload?.[0]?.payload;
+                              if (!row?.isoDate) return '';
+                              const bmiLabel = row.bmi !== null && row.bmi !== undefined ? ` · BMI ${row.bmi.toFixed(1)}` : '';
+                              return `${formatDateLabel(row.isoDate, true)}${bmiLabel}`;
+                            }}
+                          />
+                          <Legend />
+                          <Line yAxisId="left" type="monotone" dataKey="weight" stroke="#0f766e" strokeWidth={2.5} dot={{ r: 3 }} name="Weight" connectNulls />
+                          <Line yAxisId="right" type="monotone" dataKey="waist" stroke="#b45309" strokeWidth={2.5} dot={{ r: 3 }} name="Waist" connectNulls />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>

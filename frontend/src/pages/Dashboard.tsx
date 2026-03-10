@@ -3,7 +3,6 @@ import Layout from '../components/layout/Layout';
 import MainScoreDisplay from '../components/dashboard/MainScoreDisplay';
 import ScoreCard from '../components/dashboard/ScoreCard';
 import StatCard from '../components/dashboard/StatCard';
-import ManualActivityInput from '../components/dashboard/ManualActivityInput';
 import { API_URL } from '../config/api';
 
 // Monday of the current week (YYYY-MM-DD)
@@ -48,6 +47,49 @@ interface FitbitSyncData {
   };
 }
 
+interface ManualActivityEntry {
+  date: string;
+  mvpa_minutes: number;
+}
+
+function ActivityIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 13h4l2.2-4.5L14 17l2.2-4H20" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 19h16" />
+    </svg>
+  );
+}
+
+function BodyMetricsIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 5v14" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17 5v14" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h3M14 8h3M7 12h5M12 16h5" />
+    </svg>
+  );
+}
+
+function ProfileIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 20a7 7 0 0 1 14 0" />
+    </svg>
+  );
+}
+
+function WeeklyLogIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 3v3M16 3v3M4 9h16" />
+      <rect x="4" y="5" width="16" height="16" rx="2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m9 14 2 2 4-4" />
+    </svg>
+  );
+}
+
 export default function Dashboard() {
   const [scoreData, setScoreData]             = useState<WeeklyScoreRow | null>(null);
   const [loading, setLoading]                 = useState(true);
@@ -55,11 +97,8 @@ export default function Dashboard() {
   const [error, setError]                     = useState<string | null>(null);
   const [fitbitConnected, setFitbitConnected] = useState(false);
   const [fitbitData, setFitbitData]           = useState<FitbitSyncData | null>(null);
-  const [syncing, setSyncing]                 = useState(false);
-  const [syncMessage, setSyncMessage]         = useState('');
-  const [manualMvpa, setManualMvpa]           = useState<number | null>(null);
+  const [manualActivityEntries, setManualActivityEntries] = useState<ManualActivityEntry[]>([]);
 
-  const user      = JSON.parse(localStorage.getItem('user') || '{}');
   const token     = localStorage.getItem('token');
   const weekStart = getCurrentWeekStart();
 
@@ -82,16 +121,11 @@ export default function Dashboard() {
   useEffect(() => {
     const params     = new URLSearchParams(window.location.search);
     const fitbitStatus = params.get('fitbit');
-    const fUserId    = params.get('fitbit_user_id');
 
-    if (fitbitStatus === 'connected' && fUserId) {
-      setFitbitConnected(true);
-      localStorage.setItem('fitbit_user_id', fUserId);
-      localStorage.setItem('fitbit_connected', 'true');
-      setSyncMessage('Fitbit connected successfully!');
+    if (fitbitStatus === 'connected') {
+      checkFitbitStatus();
       window.history.replaceState({}, '', '/dashboard');
     } else if (fitbitStatus === 'error') {
-      setSyncMessage('Fitbit connection failed. Please try again.');
       window.history.replaceState({}, '', '/dashboard');
     }
   }, []);
@@ -134,78 +168,31 @@ export default function Dashboard() {
   // ── Fitbit ────────────────────────────────────────────────────────────────
   const checkFitbitStatus = async () => {
     try {
-      const res  = await fetch(`${API_URL}/api/fitbit/status?userId=${user.id}`);
+      const res  = await fetch(`${API_URL}/api/fitbit/status`, { headers });
       const data = await res.json();
       if (data.success && data.connected) {
         setFitbitConnected(true);
+      } else {
+        setFitbitConnected(false);
+        setFitbitData(null);
       }
     } catch (err) {
       console.error('Failed to check Fitbit status:', err);
+      setFitbitConnected(false);
     }
-  };
-
-  const connectFitbit = async () => {
-    try {
-      const res  = await fetch(`${API_URL}/api/fitbit/auth-url?userId=${user.id}`);
-      const data = await res.json();
-      if (data.success) window.location.href = data.authUrl;
-    } catch (err) {
-      console.error('Failed to get Fitbit auth URL:', err);
-    }
-  };
-
-  const syncFitbit = async () => {
-    setSyncing(true);
-    setSyncMessage('');
-    try {
-      const res  = await fetch(`${API_URL}/api/fitbit/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setFitbitData(data.data);
-        setSyncMessage(`Synced — ${data.data.steps.toLocaleString()} steps · ${data.data.activeMinutes} active mins today`);
-        loadWeeklyScore();
-      } else {
-        setSyncMessage(`Sync failed: ${data.error || data.message}`);
-      }
-    } catch (err) {
-      setSyncMessage('Sync failed. Please try again.');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const disconnectFitbit = () => {
-    localStorage.removeItem('fitbit_connected');
-    localStorage.removeItem('fitbit_user_id');
-    setFitbitConnected(false);
-    setFitbitData(null);
-    setSyncMessage('Fitbit disconnected.');
   };
 
   // ── Manual activity ───────────────────────────────────────────────────────
   const loadManualActivity = async () => {
     try {
-      const res  = await fetch(`${API_URL}/api/measurements/activity?userId=${user.id}&weekStart=${weekStart}`, { headers });
+      const res  = await fetch(`${API_URL}/api/measurements/activity?weekStart=${weekStart}`, { headers });
       const data = await res.json();
-      if (data.success) setManualMvpa(data.data.mvpa_minutes ?? null);
+      if (data.success) {
+        setManualActivityEntries(data.data.entries ?? []);
+      }
     } catch (err) {
       console.error('Failed to load manual activity:', err);
     }
-  };
-
-  const saveManualActivity = async (mvpaMinutes: number) => {
-    const res  = await fetch(`${API_URL}/api/measurements/activity`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ userId: user.id, mvpa_minutes: mvpaMinutes, week_start_date: weekStart }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success) throw new Error(data.message || 'Failed to save');
-    setManualMvpa(mvpaMinutes);
   };
 
   if (loading) {
@@ -224,7 +211,15 @@ export default function Dashboard() {
   const currentScore = p(scoreData?.total_score);
   const maxScore     = scoreData?.max_possible_score ?? 7;
   const riskLevel    = scoreData?.risk_level ?? null;
-
+  const weekLabel = `Week of ${new Date(weekStart + 'T00:00:00').toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+  })}`;
+  const answeredCount = scoreData?.days_answered ?? 0;
+  const questionnaireProgress = `${answeredCount}/9`;
+  const activityThisWeek = fitbitConnected && fitbitData
+    ? fitbitData.activeMinutes
+    : manualActivityEntries.reduce((sum, entry) => sum + Number(entry.mvpa_minutes || 0), 0);
+  const syncedStepCount = fitbitData?.steps ?? 0;
   const questionLabels: Record<string, { title: string; desc: string }> = {
     weight_score: { title: 'Healthy Weight', desc: 'BMI and waist circumference thresholds' },
     activity_score: { title: 'Physical Activity', desc: 'Total moderate-to-vigorous activity minutes per week' },
@@ -270,29 +265,26 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="bg-gray-50 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="bg-stone-50 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
           {/* Header */}
           <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Week of {new Date(weekStart + 'T00:00:00').toLocaleDateString('en-US', {
-                  month: 'long', day: 'numeric', year: 'numeric',
-                })}
-              </p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-400">Health Overview</p>
+              <h1 className="mt-1.5 text-[1.75rem] font-semibold tracking-tight text-stone-950 sm:text-[2rem]">Dashboard</h1>
+              <p className="mt-1 text-xs sm:text-sm text-stone-500">{weekLabel}</p>
             </div>
             <div className="flex items-center gap-3">
               {riskLevel && (
-                <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg border ${riskColors[riskLevel] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${riskColors[riskLevel] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
                   {riskLevel} Risk
                 </span>
               )}
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-700 transition-all hover:bg-stone-50 disabled:opacity-50 sm:text-sm"
               >
                 <svg className={`w-4 h-4 text-gray-500 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -319,121 +311,141 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Fitbit Banner */}
-          <div className={`rounded-xl p-5 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${fitbitConnected ? 'bg-green-50 border border-green-200' : 'bg-blue-50 border border-blue-200'}`}>
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${fitbitConnected ? 'bg-green-100' : 'bg-blue-100'}`}>
-                <svg className={`w-5 h-5 ${fitbitConnected ? 'text-green-600' : 'text-blue-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className={`font-semibold text-sm ${fitbitConnected ? 'text-green-800' : 'text-blue-800'}`}>
-                  {fitbitConnected ? 'Fitbit Connected' : 'Connect Your Fitbit'}
-                </p>
-                <p className={`text-xs mt-0.5 ${fitbitConnected ? 'text-green-600' : 'text-blue-600'}`}>
-                  {fitbitConnected
-                    ? syncMessage || 'Sync to auto-import activity and weight data'
-                    : 'Automatically track steps, activity, and weight'}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2 flex-shrink-0">
-              {fitbitConnected ? (
-                <>
-                  <button onClick={syncFitbit} disabled={syncing}
-                    className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors">
-                    {syncing ? 'Syncing...' : 'Sync Now'}
-                  </button>
-                  <button onClick={disconnectFitbit}
-                    className="bg-white hover:bg-gray-50 text-gray-600 text-sm font-medium py-2 px-4 rounded-lg border border-gray-200 transition-colors">
-                    Disconnect
-                  </button>
-                </>
-              ) : (
-                <button onClick={connectFitbit}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors">
-                  Connect Fitbit
-                </button>
-              )}
+          <div className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_1fr]">
+            <MainScoreDisplay
+              currentScore={currentScore}
+              maxScore={maxScore}
+              trend={0}
+              riskLevel={riskLevel}
+              weekLabel={weekLabel}
+            />
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-1">
+              <StatCard
+                label="Questionnaire"
+                value={questionnaireProgress}
+                subtitle="Sections completed for this week"
+                change={answeredCount === 9 ? 'Ready' : 'Pending'}
+                changeType={answeredCount === 9 ? 'positive' : 'neutral'}
+              />
+              <StatCard
+                label="Activity This Week"
+                value={`${activityThisWeek}`}
+                subtitle="Moderate-to-vigorous minutes logged or synced"
+                change={activityThisWeek >= 150 ? 'Goal met' : `${Math.max(150 - activityThisWeek, 0)} min left`}
+                changeType={activityThisWeek >= 150 ? 'positive' : activityThisWeek >= 75 ? 'neutral' : 'negative'}
+              />
+              <StatCard
+                label="Fitbit Steps"
+                value={fitbitConnected && syncedStepCount ? syncedStepCount.toLocaleString() : 'Not synced'}
+                subtitle={fitbitConnected ? 'Current week total from Fitbit sync' : 'Connect Fitbit for automatic import'}
+                change={fitbitConnected ? 'Live source' : 'Manual mode'}
+                changeType={fitbitConnected ? 'positive' : 'neutral'}
+              />
             </div>
           </div>
 
-          {/* Fitbit synced stats */}
-          {fitbitData && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-              {[
-                { label: 'Steps',        value: fitbitData.steps.toLocaleString() },
-                { label: 'Active Mins',  value: `${fitbitData.activeMinutes} min` },
-                { label: 'Calories Out', value: fitbitData.caloriesBurned.toLocaleString() },
-                { label: 'Weight',       value: fitbitData.weightKg  ? `${fitbitData.weightKg} kg`  : 'N/A' },
-                { label: 'BMI',          value: fitbitData.bmi       ? `${fitbitData.bmi}`           : 'N/A' },
-                { label: 'Height',       value: fitbitData.heightCm  ? `${fitbitData.heightCm} cm`  : 'N/A' },
-              ].map(item => (
-                <div key={item.label} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                  <div className="text-lg font-bold text-gray-900">{item.value}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{item.label}</div>
+          <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">This week</p>
+                  <h2 className="mt-1 text-base font-semibold tracking-tight text-stone-950">Progress snapshot</h2>
                 </div>
-              ))}
-            </div>
-          )}
+                <a href="/progress" className="text-xs font-semibold text-stone-500 hover:text-stone-900">See progress</a>
+              </div>
 
-          {/* Score */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div className="lg:col-span-2">
-              <MainScoreDisplay currentScore={currentScore} maxScore={maxScore} trend={0} />
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-[18px] border border-stone-200 bg-stone-50 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-stone-900">Questionnaire</div>
+                    <div className="text-xs font-medium text-stone-500">{answeredCount}/9</div>
+                  </div>
+                  <div className="mt-3 h-1.5 rounded-full bg-stone-200">
+                    <div
+                      className="h-1.5 rounded-full bg-stone-900"
+                      style={{ width: `${Math.max(0, Math.min(100, (answeredCount / 9) * 100))}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 text-xs text-stone-500">
+                    {answeredCount === 9 ? 'Complete for this week' : `${9 - answeredCount} sections remaining`}
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-stone-200 bg-stone-50 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-stone-900">Activity target</div>
+                    <div className="text-xs font-medium text-stone-500">{activityThisWeek}/150</div>
+                  </div>
+                  <div className="mt-3 h-1.5 rounded-full bg-stone-200">
+                    <div
+                      className={`h-1.5 rounded-full ${activityThisWeek >= 150 ? 'bg-emerald-600' : activityThisWeek >= 75 ? 'bg-amber-500' : 'bg-stone-500'}`}
+                      style={{ width: `${Math.max(0, Math.min(100, (activityThisWeek / 150) * 100))}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 text-xs text-stone-500">
+                    {activityThisWeek >= 150 ? 'Goal met this week' : `${Math.max(150 - activityThisWeek, 0)} minutes to goal`}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="space-y-4">
-              <StatCard
-                label="Current Score"
-                value={currentScore.toFixed(1)}
-                subtitle={`Out of ${maxScore}`}
-                change={`${Math.round((currentScore / maxScore) * 100)}%`}
-                changeType="neutral"
-              />
-              {/* Show manual activity input only when Fitbit is not connected */}
-              {!fitbitConnected && (
-                <ManualActivityInput
-                  onSave={saveManualActivity}
-                  savedMinutes={manualMvpa}
-                />
-              )}
+
+            <div className="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Go to</p>
+                  <h2 className="mt-1 text-base font-semibold tracking-tight text-stone-950">Core actions</h2>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {[
+                  { href: '/health-log', title: 'Weekly Log', meta: 'Questionnaire', icon: <WeeklyLogIcon /> },
+                  { href: '/activity', title: 'Activity', meta: fitbitConnected ? 'Fitbit + manual' : 'Manual logging', icon: <ActivityIcon /> },
+                  { href: '/body-metrics', title: 'Body Metrics', meta: 'Weight and waist', icon: <BodyMetricsIcon /> },
+                  { href: '/profile', title: 'Profile', meta: 'Height and account', icon: <ProfileIcon /> },
+                ].map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className="group rounded-[18px] border border-stone-200 bg-stone-50 px-3 py-3 transition-colors hover:bg-white"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-stone-600">
+                          {item.icon}
+                        </span>
+                        <div>
+                          <div className="text-sm font-semibold text-stone-900">{item.title}</div>
+                          <div className="mt-0.5 text-xs text-stone-500">{item.meta}</div>
+                        </div>
+                      </div>
+                      <span className="text-stone-400 transition-transform group-hover:translate-x-0.5">→</span>
+                    </div>
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Component Breakdown */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Component Breakdown</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="mb-6">
+            <div className="mb-3 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-400">Breakdown</p>
+                <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-stone-950">Recommendation Components</h2>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {components.map(c => (
                 <ScoreCard key={c.id} title={c.title} score={c.score} maxScore={c.max} description={c.desc} trend={0} />
               ))}
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button onClick={() => window.location.href = '/health-log'}
-              className="bg-gray-900 hover:bg-gray-800 text-white font-medium py-4 px-6 rounded-lg transition-colors text-left flex justify-between items-center">
-              <div>
-                <div className="font-semibold mb-0.5">Weekly Log</div>
-                <div className="text-sm text-gray-300">Log your daily food and drink</div>
-              </div>
-              <span className="text-lg">→</span>
-            </button>
-            <button onClick={() => window.location.href = '/measurements'}
-              className="bg-white hover:bg-gray-50 text-gray-900 font-medium py-4 px-6 rounded-lg border border-gray-200 transition-colors text-left flex justify-between items-center">
-              <div>
-                <div className="font-semibold mb-0.5">Add Measurements</div>
-                <div className="text-sm text-gray-500">Track weight and activity</div>
-              </div>
-              <span className="text-lg">→</span>
-            </button>
-          </div>
-
           {/* Last calculated */}
           {scoreData?.calculated_at && (
-            <p className="text-xs text-gray-400 mt-6 text-right">
+            <p className="mt-6 text-right text-xs text-stone-400">
               Last calculated:{' '}
               {new Date(scoreData.calculated_at).toLocaleString('en-US', {
                 month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',

@@ -78,8 +78,12 @@ export default function ProfilePage() {
   const [saved, setSaved]     = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [fitbitConnected, setFitbitConnected] = useState(false);
 
-  useEffect(() => { fetchProfile(); }, []);
+  useEffect(() => {
+    void fetchProfile();
+    void fetchFitbitStatus();
+  }, []);
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -93,6 +97,16 @@ export default function ProfilePage() {
       if (stored.id) hydrate(stored);
       else setError('Could not load profile.');
     } finally { setLoading(false); }
+  };
+
+  const fetchFitbitStatus = async () => {
+    try {
+      const res = await fetch(`${API}/fitbit/status`, { headers: hdrs });
+      const data = await res.json();
+      setFitbitConnected(Boolean(data.success && data.connected));
+    } catch {
+      setFitbitConnected(false);
+    }
   };
 
   const hydrate = (d: any) => {
@@ -235,6 +249,13 @@ export default function ProfilePage() {
                   Google
                 </span>
               )}
+              <span className={`text-xs px-3 py-1 rounded-full font-medium border ${
+                fitbitConnected
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                  : 'bg-gray-50 text-gray-500 border-gray-100'
+              }`}>
+                {fitbitConnected ? 'Fitbit Connected' : 'Fitbit Not Connected'}
+              </span>
             </div>
           </div>
 

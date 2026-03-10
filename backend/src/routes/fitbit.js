@@ -1,6 +1,7 @@
 import express from 'express';
 import fetch from 'node-fetch';
 import pool from '../config/database.js';
+import { authenticate } from '../middleware/authenticate.js';
 
 const router = express.Router();
 
@@ -12,19 +13,39 @@ const SCOPES = [
   'sleep'
 ].join('%20');
 
+function getCurrentWeekDates() {
+  const now = new Date();
+  const diff = (now.getDay() + 6) % 7;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diff);
+  monday.setHours(0, 0, 0, 0);
+
+  const dates = [];
+  for (let i = 0; i < 7; i += 1) {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    if (date > now) break;
+    dates.push(date.toISOString().split('T')[0]);
+  }
+  return dates;
+}
+
 // ─────────────────────────────────────────
 // GET /api/fitbit/auth-url?userId=123
 // Returns Fitbit authorization URL with userId in state
 // ─────────────────────────────────────────
-router.get('/auth-url', (req, res) => {
-  const { userId } = req.query;
-
-  if (!userId) {
-    return res.status(400).json({ success: false, message: 'userId is required' });
-  }
+router.get('/auth-url', authenticate, (req, res) => {
+  const userId = req.user.id;
 
   const clientId    = process.env.FITBIT_CLIENT_ID;
   const redirectUri = process.env.FITBIT_REDIRECT_URI;
+
+  if (!clientId || !redirectUri) {
+    return res.status(500).json({
+      success: false,
+      message: 'Fitbit OAuth is not configured on the server',
+    });
+  }
 
   // Encode userId in state param so we get it back after OAuth
   const state = Buffer.from(JSON.stringify({ userId })).toString('base64');
@@ -127,14 +148,12 @@ router.get('/callback', async (req, res) => {
 
 // ─────────────────────────────────────────
 // POST /api/fitbit/sync
-// Fetches today's Fitbit data using user_id
+// Fetches current week's Fitbit activity data using user_id
 // ─────────────────────────────────────────
-router.post('/sync', async (req, res) => {
-  const { userId } = req.body;
-  if (!userId) {
-    return res.status(400).json({ success: false, message: 'userId is required' });
-  }
+router.post('/sync', authenticate, async (req, res) => {
+  const userId = req.user.id;
   const today = new Date().toISOString().split('T')[0];
+  const weekDates = getCurrentWeekDates();
 
   const client = await pool.connect();
   try {
@@ -155,11 +174,15 @@ router.post('/sync', async (req, res) => {
       access_token = await refreshAccessToken(fitbit_user_id, refresh_token, client);
     }
 
-    // Fetch data in parallel
-    const [activityRes, weightRes, profileRes] = await Promise.all([
-      fetch(`https://api.fitbit.com/1/user/-/activities/date/${today}.json`, {
-        headers: { Authorization: `Bearer ${access_token}` }
-      }),
+    // Fetch current-week activity plus today's body/profile data.
+    const activityResponses = await Promise.all(
+      weekDates.map((date) =>
+        fetch(`https://api.fitbit.com/1/user/-/activities/date/${date}.json`, {
+          headers: { Authorization: `Bearer ${access_token}` }
+        })
+      )
+    );
+    const [weightRes, profileRes] = await Promise.all([
       fetch(`https://api.fitbit.com/1/user/-/body/log/weight/date/${today}.json`, {
         headers: { Authorization: `Bearer ${access_token}` }
       }),
@@ -168,14 +191,18 @@ router.post('/sync', async (req, res) => {
       })
     ]);
 
-    const [activityData, weightData, profileData] = await Promise.all([
-      activityRes.json(),
+    const activityPayloads = await Promise.all(activityResponses.map((response) => response.json()));
+    const [weightData, profileData] = await Promise.all([
       weightRes.json(),
       profileRes.json()
     ]);
 
-    // Debug: see exact raw values from Fitbit
-    console.log('📊 Activity Summary:', JSON.stringify(activityData?.summary, null, 2));
+    const weeklyActivityData = weekDates.map((date, index) => ({
+      date,
+      summary: activityPayloads[index]?.summary ?? {},
+    }));
+
+    console.log('📊 Weekly Activity Summary:', JSON.stringify(weeklyActivityData, null, 2));
     console.log('⚖️  Weight Log:', JSON.stringify(weightData, null, 2));
     console.log('👤 Profile:', JSON.stringify({
       height:     profileData?.user?.height,
@@ -185,11 +212,58 @@ router.post('/sync', async (req, res) => {
       strideLengthWalking: profileData?.user?.strideLengthWalking,
     }, null, 2));
 
-    // ── Activity ──────────────────────────────────────────
-    const steps          = activityData?.summary?.steps ?? 0;
-    const activeMinutes  = (activityData?.summary?.fairlyActiveMinutes ?? 0)
-                         + (activityData?.summary?.veryActiveMinutes ?? 0);
-    const caloriesBurned = activityData?.summary?.caloriesOut ?? 0;
+    // ── Current week activity ─────────────────────────────
+    const manualWeekResult = await client.query(
+      `SELECT date::text AS date, mvpa_minutes, steps, weight_kg, bmi, waist_cm
+       FROM daily_measurements
+       WHERE user_id = $1
+         AND date >= $2::date
+         AND date < ($2::date + interval '7 days')`,
+      [userId, weekDates[0]]
+    );
+    const manualByDate = new Map(manualWeekResult.rows.map((row) => [row.date, row]));
+
+    let weeklySteps = 0;
+    let weeklyActiveMinutes = 0;
+    let weeklyCaloriesBurned = 0;
+
+    for (const day of weeklyActivityData) {
+      const fitbitSteps = Number(day.summary?.steps ?? 0);
+      const fitbitActiveMinutes =
+        Number(day.summary?.fairlyActiveMinutes ?? 0) +
+        Number(day.summary?.veryActiveMinutes ?? 0);
+      const fitbitCalories = Number(day.summary?.caloriesOut ?? 0);
+      const manual = manualByDate.get(day.date);
+
+      const finalSteps = fitbitSteps > 0 ? fitbitSteps : Number(manual?.steps ?? 0);
+      const finalActiveMinutes = fitbitActiveMinutes > 0 ? fitbitActiveMinutes : Number(manual?.mvpa_minutes ?? 0);
+
+      weeklySteps += finalSteps;
+      weeklyActiveMinutes += finalActiveMinutes;
+      weeklyCaloriesBurned += fitbitCalories;
+
+      await client.query(
+        `INSERT INTO daily_measurements
+         (user_id, date, weight_kg, bmi, waist_cm, mvpa_minutes, steps)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (user_id, date)
+         DO UPDATE SET
+           weight_kg    = COALESCE(daily_measurements.weight_kg, EXCLUDED.weight_kg),
+           bmi          = COALESCE(daily_measurements.bmi, EXCLUDED.bmi),
+           waist_cm     = COALESCE(daily_measurements.waist_cm, EXCLUDED.waist_cm),
+           mvpa_minutes = COALESCE(EXCLUDED.mvpa_minutes, daily_measurements.mvpa_minutes),
+           steps        = COALESCE(EXCLUDED.steps, daily_measurements.steps)`,
+        [
+          userId,
+          day.date,
+          manual?.weight_kg ?? null,
+          manual?.bmi ?? null,
+          manual?.waist_cm ?? null,
+          finalActiveMinutes,
+          finalSteps,
+        ]
+      );
+    }
 
     const profile = profileData?.user ?? {};
 
@@ -218,25 +292,16 @@ router.post('/sync', async (req, res) => {
       bmi = parseFloat((weightKg / (heightM * heightM)).toFixed(1));
     }
 
-    // Fallback to existing daily_measurements for today if Fitbit misses some fields
-    const manualResult = await client.query(
-      `SELECT bmi, waist_cm, mvpa_minutes, steps, weight_kg
-       FROM daily_measurements
-       WHERE user_id = $1 AND date = $2
-       LIMIT 1`,
-      [userId, today]
-    );
-    const manual = manualResult.rows[0] ?? null;
+    const todayMeasurement = manualByDate.get(today) ?? null;
 
     // Final values with fallback chain
-    const finalWeightKg   = weightKg ?? manual?.weight_kg ?? null;
+    const finalWeightKg   = weightKg ?? todayMeasurement?.weight_kg ?? null;
     const finalHeightCm   = heightCm ?? null;
-    const finalBmi        = bmi ?? (manual?.bmi ? parseFloat(manual.bmi) : null);
-    const finalWaist      = manual?.waist_cm ?? null;
-    const finalActiveMins = activeMinutes > 0 ? activeMinutes : (manual?.mvpa_minutes ?? 0);
-    const finalSteps      = steps > 0 ? steps : (manual?.steps ?? 0);
+    const finalBmi        = bmi ?? (todayMeasurement?.bmi ? parseFloat(todayMeasurement.bmi) : null);
+    const finalWaist      = todayMeasurement?.waist_cm ?? null;
 
-    // Persist Fitbit/manual merged values into daily_measurements for scoring engine.
+    // Persist today's weight/BMI into daily_measurements without overwriting
+    // the already-synced weekly activity values.
     await client.query(
       `INSERT INTO daily_measurements
        (user_id, date, weight_kg, bmi, waist_cm, mvpa_minutes, steps)
@@ -248,7 +313,22 @@ router.post('/sync', async (req, res) => {
          waist_cm     = COALESCE(EXCLUDED.waist_cm, daily_measurements.waist_cm),
          mvpa_minutes = COALESCE(EXCLUDED.mvpa_minutes, daily_measurements.mvpa_minutes),
          steps        = COALESCE(EXCLUDED.steps, daily_measurements.steps)`,
-      [userId, today, finalWeightKg, finalBmi, finalWaist, finalActiveMins, finalSteps]
+      [
+        userId,
+        today,
+        finalWeightKg,
+        finalBmi,
+        finalWaist,
+        weeklyActivityData.find((day) => day.date === today)
+          ? (
+              Number(weeklyActivityData.find((day) => day.date === today)?.summary?.fairlyActiveMinutes ?? 0) +
+              Number(weeklyActivityData.find((day) => day.date === today)?.summary?.veryActiveMinutes ?? 0)
+            ) || Number(todayMeasurement?.mvpa_minutes ?? 0)
+          : Number(todayMeasurement?.mvpa_minutes ?? 0),
+        weeklyActivityData.find((day) => day.date === today)
+          ? Number(weeklyActivityData.find((day) => day.date === today)?.summary?.steps ?? 0) || Number(todayMeasurement?.steps ?? 0)
+          : Number(todayMeasurement?.steps ?? 0),
+      ]
     );
 
     // If user height is not set, seed it from Fitbit profile.
@@ -262,7 +342,9 @@ router.post('/sync', async (req, res) => {
     }
 
     console.log('✅ Sync result:', {
-      steps: finalSteps, activeMinutes: finalActiveMins,
+      weekDates,
+      steps: weeklySteps,
+      activeMinutes: weeklyActiveMinutes,
       weightKg: finalWeightKg, heightCm: finalHeightCm,
       bmi: finalBmi, waist: finalWaist,
       weightSource
@@ -272,9 +354,11 @@ router.post('/sync', async (req, res) => {
       success: true,
       data: {
         date:            today,
-        steps:           finalSteps,
-        activeMinutes:   finalActiveMins,
-        caloriesBurned,
+        weekStart:       weekDates[0],
+        datesSynced:     weekDates,
+        steps:           weeklySteps,
+        activeMinutes:   weeklyActiveMinutes,
+        caloriesBurned:  weeklyCaloriesBurned,
         weightKg:        finalWeightKg,
         heightCm:        finalHeightCm,
         bmi:             finalBmi,
@@ -282,7 +366,7 @@ router.post('/sync', async (req, res) => {
         // Source info for transparency
         sources: {
           weight:   weightSource,
-          activity: activeMinutes > 0 ? 'fitbit' : 'manual',
+          activity: 'fitbit_with_manual_fallback',
           bmi:      bmiFromLog ? 'fitbit_log' : (bmi ? 'calculated' : 'manual')
         }
       }
@@ -300,8 +384,8 @@ router.post('/sync', async (req, res) => {
 // GET /api/fitbit/status?userId=123
 // Check if a user has Fitbit connected
 // ─────────────────────────────────────────
-router.get('/status', async (req, res) => {
-  const { userId } = req.query;
+router.get('/status', authenticate, async (req, res) => {
+  const userId = req.user.id;
   const client = await pool.connect();
   try {
     const result = await client.query(
@@ -315,6 +399,28 @@ router.get('/status', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.delete('/disconnect', authenticate, async (req, res) => {
+  const userId = req.user.id;
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'DELETE FROM fitbit_tokens WHERE user_id = $1 RETURNING fitbit_user_id',
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      disconnected: result.rowCount > 0,
+      message: result.rowCount > 0 ? 'Fitbit disconnected' : 'No Fitbit connection found',
+    });
+  } catch (err) {
+    console.error('Fitbit disconnect error:', err);
+    res.status(500).json({ success: false, message: 'Failed to disconnect Fitbit', error: err.message });
   } finally {
     client.release();
   }

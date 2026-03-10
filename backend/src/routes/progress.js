@@ -1,138 +1,120 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { authenticate } from '../middleware/authenticate.js';
 
 const router = express.Router();
 
-// Get score history for a date range
-router.get('/scores/:userId', async (req, res) => {
+function clampDays(value, fallback = 30) {
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed)) return fallback;
+  return Math.min(Math.max(parsed, 7), 365);
+}
+
+router.get('/scores', authenticate, async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { days = 30 } = req.query;
+    const userId = req.user.id;
+    const days = clampDays(req.query.days, 90);
 
     const result = await pool.query(
-      `SELECT 
-        date,
-        total_score,
-        weight_score,
-        activity_score,
-        plant_score,
-        processed_food_score,
-        meat_score,
-        drinks_score,
-        alcohol_score
-       FROM daily_scores
-       WHERE user_id = $1 
-       AND date >= CURRENT_DATE - $2::integer
-       ORDER BY date ASC`,
+      `SELECT
+         week_start_date,
+         total_score,
+         max_possible_score,
+         risk_level,
+         calculated_at
+       FROM weekly_questionnaire_scores
+       WHERE user_id = $1
+         AND week_start_date >= CURRENT_DATE - $2::integer
+       ORDER BY week_start_date ASC`,
       [userId, days]
     );
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
+    if (error.code === '42P01') {
+      return res.json({ success: true, data: [] });
+    }
+
     console.error('Get score history error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to get score history',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Get weight history
-router.get('/weight/:userId', async (req, res) => {
+router.get('/body-metrics', authenticate, async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { days = 30 } = req.query;
+    const userId = req.user.id;
+    const days = clampDays(req.query.days, 90);
 
     const result = await pool.query(
-      `SELECT date, weight_kg, bmi
-       FROM daily_measurements
-       WHERE user_id = $1 
-       AND date >= CURRENT_DATE - $2::integer
-       AND weight_kg IS NOT NULL
-       ORDER BY date ASC`,
+      `SELECT
+         dm.date,
+         dm.weight_kg,
+         dm.waist_cm,
+         dm.bmi,
+         u.height_cm
+       FROM daily_measurements dm
+       LEFT JOIN users u ON u.id = dm.user_id
+       WHERE dm.user_id = $1
+         AND dm.date >= CURRENT_DATE - $2::integer
+         AND (dm.weight_kg IS NOT NULL OR dm.waist_cm IS NOT NULL OR dm.bmi IS NOT NULL)
+       ORDER BY dm.date ASC`,
       [userId, days]
     );
 
-    res.json({
-      success: true,
-      data: result.rows
+    const data = result.rows.map((row) => {
+      let bmi = row.bmi;
+      if ((bmi === null || bmi === undefined) && row.weight_kg && row.height_cm) {
+        bmi = +(Number(row.weight_kg) / Math.pow(Number(row.height_cm) / 100, 2)).toFixed(1);
+      }
+
+      return {
+        date: row.date,
+        weight_kg: row.weight_kg,
+        waist_cm: row.waist_cm,
+        bmi,
+      };
     });
+
+    res.json({ success: true, data });
   } catch (error) {
-    console.error('Get weight history error:', error);
+    console.error('Get body metrics history error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get weight history',
-      error: error.message
+      message: 'Failed to get body metrics history',
+      error: error.message,
     });
   }
 });
 
-// Get activity history
-router.get('/activity/:userId', async (req, res) => {
+router.get('/activity', authenticate, async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { days = 30 } = req.query;
+    const userId = req.user.id;
+    const days = clampDays(req.query.days, 30);
 
     const result = await pool.query(
-      `SELECT date, mvpa_minutes, steps
+      `SELECT
+         date,
+         COALESCE(mvpa_minutes, 0)::int AS mvpa_minutes,
+         COALESCE(steps, 0)::int AS steps
        FROM daily_measurements
-       WHERE user_id = $1 
-       AND date >= CURRENT_DATE - $2::integer
-       AND (mvpa_minutes IS NOT NULL OR steps IS NOT NULL)
+       WHERE user_id = $1
+         AND date >= CURRENT_DATE - $2::integer
+         AND (mvpa_minutes IS NOT NULL OR steps IS NOT NULL)
        ORDER BY date ASC`,
       [userId, days]
     );
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Get activity history error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to get activity history',
-      error: error.message
-    });
-  }
-});
-
-// Get nutrition summary
-router.get('/nutrition/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { days = 30 } = req.query;
-
-    const result = await pool.query(
-      `SELECT 
-        date,
-        SUM(calories) as total_calories,
-        SUM(protein_g) as total_protein,
-        SUM(carbs_g) as total_carbs,
-        SUM(fat_g) as total_fat,
-        SUM(fiber_g) as total_fiber
-       FROM food_entries
-       WHERE user_id = $1 
-       AND date >= CURRENT_DATE - $2::integer
-       GROUP BY date
-       ORDER BY date ASC`,
-      [userId, days]
-    );
-
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Get nutrition history error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get nutrition history',
-      error: error.message
+      error: error.message,
     });
   }
 });

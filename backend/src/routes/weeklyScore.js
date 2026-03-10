@@ -138,21 +138,55 @@ async function loadMeasurementForWeek(userId, weekStart) {
     [userId, weekStart]
   );
 
-  const bodyResult = await pool.query(
-    `SELECT bmi, waist_cm
+  const userResult = await pool.query(
+    `SELECT height_cm
+     FROM users
+     WHERE id = $1`,
+    [userId]
+  );
+
+  const heightCm = userResult.rows[0]?.height_cm ?? null;
+
+  let bodyResult = await pool.query(
+    `SELECT bmi, waist_cm, weight_kg
      FROM daily_measurements
      WHERE user_id = $1
-       AND date <= ($2::date + interval '6 days')
-       AND (bmi IS NOT NULL OR waist_cm IS NOT NULL)
+       AND date >= $2::date
+       AND date < ($2::date + interval '7 days')
+       AND (bmi IS NOT NULL OR waist_cm IS NOT NULL OR weight_kg IS NOT NULL)
      ORDER BY date DESC
      LIMIT 1`,
     [userId, weekStart]
   );
 
+  if (!bodyResult.rows.length) {
+    bodyResult = await pool.query(
+      `SELECT bmi, waist_cm, weight_kg
+       FROM daily_measurements
+       WHERE user_id = $1
+         AND date < $2::date
+         AND (bmi IS NOT NULL OR waist_cm IS NOT NULL OR weight_kg IS NOT NULL)
+       ORDER BY date DESC
+       LIMIT 1`,
+      [userId, weekStart]
+    );
+  }
+
+  const storedBmi = bodyResult.rows[0]?.bmi ?? null;
+  const weightKg = bodyResult.rows[0]?.weight_kg ?? null;
+  const derivedBmi =
+    storedBmi !== null && storedBmi !== undefined
+      ? storedBmi
+      : heightCm && weightKg
+        ? +(Number(weightKg) / Math.pow(Number(heightCm) / 100, 2)).toFixed(1)
+        : null;
+
   return {
     mvpa_minutes: activityResult.rows[0]?.total_mvpa ?? 0,
-    bmi: bodyResult.rows[0]?.bmi ?? null,
+    bmi: derivedBmi,
     waist_cm: bodyResult.rows[0]?.waist_cm ?? null,
+    weight_kg: weightKg,
+    height_cm: heightCm,
   };
 }
 
@@ -351,42 +385,36 @@ router.get('/', authenticate, async (req, res) => {
     );
     let row = result.rows[0] ?? null;
 
-    // Auto-upgrade old 5-component records to full 7-component model.
+    // Recompute from latest measurements on every read so manual/Fitbit
+    // activity and body metrics are always reflected in the dashboard.
     if (row) {
-      const components = row.components_json ?? {};
-      const hasWeight = Object.prototype.hasOwnProperty.call(components, 'weight_score');
-      const hasActivity = Object.prototype.hasOwnProperty.call(components, 'activity_score');
-      const isLegacy = Number(row.max_possible_score) < 7 || !hasWeight || !hasActivity;
+      const answers = normalizeAnswers(row.answers_json ?? {});
+      const userResult = await pool.query('SELECT gender FROM users WHERE id = $1', [userId]);
+      const gender = (userResult.rows[0]?.gender || 'male').toLowerCase() === 'female' ? 'female' : 'male';
+      const measurement = await loadMeasurementForWeek(userId, weekStart);
+      const scored = scoreAnswers(answers, gender, measurement);
 
-      if (isLegacy) {
-        const answers = normalizeAnswers(row.answers_json ?? {});
-        const userResult = await pool.query('SELECT gender FROM users WHERE id = $1', [userId]);
-        const gender = (userResult.rows[0]?.gender || 'male').toLowerCase() === 'female' ? 'female' : 'male';
-        const measurement = await loadMeasurementForWeek(userId, weekStart);
-        const scored = scoreAnswers(answers, gender, measurement);
-
-        const updated = await pool.query(
-          `UPDATE weekly_questionnaire_scores
-           SET
-             components_json = $3::jsonb,
-             total_score = $4,
-             max_possible_score = $5,
-             risk_level = $6,
-             updated_at = NOW(),
-             calculated_at = NOW()
-           WHERE user_id = $1 AND week_start_date = $2::date
-           RETURNING *`,
-          [
-            userId,
-            weekStart,
-            JSON.stringify(scored.components),
-            scored.total,
-            scored.maxPossible,
-            scored.riskLevel,
-          ]
-        );
-        row = updated.rows[0] ?? row;
-      }
+      const updated = await pool.query(
+        `UPDATE weekly_questionnaire_scores
+         SET
+           components_json = $3::jsonb,
+           total_score = $4,
+           max_possible_score = $5,
+           risk_level = $6,
+           updated_at = NOW(),
+           calculated_at = NOW()
+         WHERE user_id = $1 AND week_start_date = $2::date
+         RETURNING *`,
+        [
+          userId,
+          weekStart,
+          JSON.stringify(scored.components),
+          scored.total,
+          scored.maxPossible,
+          scored.riskLevel,
+        ]
+      );
+      row = updated.rows[0] ?? row;
     }
 
     res.json({ success: true, data: toApiPayload(row) });
