@@ -1,0 +1,14 @@
+.git
+.gitignore
+.DS_Store
+node_modules
+backend/node_modules
+frontend/node_modules
+vite-project
+frontend/dist
+dist
+coverage
+*.log
+.env
+backend/.env
+frontend/.env

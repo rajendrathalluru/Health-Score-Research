@@ -240,10 +240,54 @@ npm run start:backend
 
 The repo now includes:
 
+- [`Dockerfile`](/Users/rajendrathalluru/Documents/healthscore-tracker/Dockerfile)
 - [`docker-compose.yml`](/Users/rajendrathalluru/Documents/healthscore-tracker/docker-compose.yml)
 - [`backend/Dockerfile`](/Users/rajendrathalluru/Documents/healthscore-tracker/backend/Dockerfile)
 - [`frontend/Dockerfile`](/Users/rajendrathalluru/Documents/healthscore-tracker/frontend/Dockerfile)
 - [`frontend/nginx.conf`](/Users/rajendrathalluru/Documents/healthscore-tracker/frontend/nginx.conf)
+
+### Single-Service Deploy
+
+For platforms that prefer one deployment, use the root [`Dockerfile`](/Users/rajendrathalluru/Documents/healthscore-tracker/Dockerfile).
+
+How it works:
+
+- builds the frontend
+- installs backend production dependencies
+- copies the frontend build into `public/`
+- runs the Express backend
+- serves both the React app and API from one service
+
+Recommended deploy settings:
+
+- Base Directory: repo root
+- Dockerfile path: `Dockerfile`
+- Port: `3001`
+
+Required environment variables:
+
+```env
+NODE_ENV=production
+PORT=3001
+DATABASE_URL=your_supabase_connection_string
+JWT_SECRET=your_long_random_secret
+
+FRONTEND_URL=https://your-app-domain.com
+
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=https://your-app-domain.com/api/auth/google/callback
+
+FITBIT_CLIENT_ID=...
+FITBIT_CLIENT_SECRET=...
+FITBIT_REDIRECT_URI=https://your-app-domain.com/api/fitbit/callback
+
+USDA_API_KEY=...
+```
+
+The frontend uses relative `/api` calls by default, so `VITE_API_URL` can stay empty in the single-container setup.
+
+### Split Frontend/Backend Deploy
 
 How it works:
 

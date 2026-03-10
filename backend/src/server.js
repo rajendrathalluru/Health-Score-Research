@@ -6,8 +6,10 @@ import dotenv from 'dotenv';
 dotenv.config(); // ← MUST be first before any other imports
 
 import express from 'express';
+import fs from 'fs';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
 import authRoutes from './routes/auth.js';
 import testRoutes from './routes/test.js';
 import measurementRoutes from './routes/measurements.js';
@@ -22,6 +24,8 @@ import profileRoutes from './routes/profile.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const frontendDistPath = path.resolve(process.cwd(), 'public');
+const hasFrontendBundle = fs.existsSync(path.join(frontendDistPath, 'index.html'));
 
 app.use(helmet());
 app.use(cors({
@@ -52,6 +56,12 @@ app.use('/api/fitbit', fitbitRoutes);
 app.use('/api/weekly-score', weeklyscoreRoutes); 
 app.use('/api/profile', profileRoutes);
 
+if (hasFrontendBundle) {
+  app.use(express.static(frontendDistPath));
+  app.get(/^(?!\/api(?:\/|$)|\/health$).*/, (req, res) => {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+}
 
 app.use((err, req, res, next) => {
   console.error('Error:', err);
