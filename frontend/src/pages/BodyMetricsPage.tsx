@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import BodyMeasurementsCard from '../components/dashboard/BodyMeasurementsCard';
 import { API_URL } from '../config/api';
@@ -102,13 +103,13 @@ export default function BodyMetricsPage() {
                   Healthy weight combines BMI and waist circumference. Save this week&apos;s values so the dashboard uses the current week first.
                 </div>
               </div>
-              <a
-                href="/profile"
+              <Link
+                to="/profile"
                 className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 sm:text-sm"
               >
                 Profile Height
                 <span>→</span>
-              </a>
+              </Link>
             </div>
           </div>
         </div>

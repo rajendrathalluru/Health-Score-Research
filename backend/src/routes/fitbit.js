@@ -13,6 +13,10 @@ const SCOPES = [
   'sleep'
 ].join('%20');
 
+function getFrontendUrl() {
+  return (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
+}
+
 function getCurrentWeekDates() {
   const now = new Date();
   const diff = (now.getDay() + 6) % 7;
@@ -68,7 +72,7 @@ router.get('/auth-url', authenticate, (req, res) => {
 // ─────────────────────────────────────────
 router.get('/callback', async (req, res) => {
   const { code, state, error } = req.query;
-  const FRONTEND_URL = process.env.FRONTEND_URL;
+  const FRONTEND_URL = getFrontendUrl();
 
   if (error || !code || !state) {
     console.error('Fitbit OAuth error:', error);
@@ -172,7 +176,7 @@ router.get('/callback', async (req, res) => {
 
   } catch (err) {
     console.error('Fitbit callback error:', err);
-    res.redirect(`${process.env.FRONTEND_URL}/activity?fitbit=error`);
+    res.redirect(`${getFrontendUrl()}/activity?fitbit=error`);
   }
 });
 

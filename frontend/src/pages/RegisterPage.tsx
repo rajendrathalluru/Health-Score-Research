@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE } from '../config/api';
 
 export default function RegisterPage() {
@@ -217,9 +217,9 @@ export default function RegisterPage() {
 
             <p className="mt-6 text-center text-sm text-stone-500">
               Already have an account?{' '}
-              <a href="/login" className="font-medium text-stone-900 hover:text-stone-700">
+              <Link to="/login" className="font-medium text-stone-900 hover:text-stone-700">
                 Sign in
-              </a>
+              </Link>
             </p>
           </div>
         </div>

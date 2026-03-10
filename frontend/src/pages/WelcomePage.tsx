@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 function PulseIcon() {
   return (
@@ -73,12 +73,12 @@ export default function WelcomePage() {
           </div>
 
           <div className="hidden items-center gap-2 sm:flex">
-            <a
-              href="/login"
+            <Link
+              to="/login"
               className="rounded-full border border-stone-300/80 bg-white/70 px-4 py-2 text-sm font-medium text-stone-700 backdrop-blur transition-colors hover:bg-white"
             >
               Log in
-            </a>
+            </Link>
           </div>
         </header>
 
@@ -235,18 +235,18 @@ export default function WelcomePage() {
                 </div>
 
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                  <a
-                    href="/register"
+                  <Link
+                    to="/register"
                     className="inline-flex flex-1 items-center justify-center rounded-[1.35rem] bg-[#111111] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-black"
                   >
                     Create account
-                  </a>
-                  <a
-                    href="/login"
+                  </Link>
+                  <Link
+                    to="/login"
                     className="inline-flex flex-1 items-center justify-center rounded-[1.35rem] border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-800 transition-colors hover:bg-stone-50"
                   >
                     Log in
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>

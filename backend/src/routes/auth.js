@@ -7,7 +7,7 @@ import pool from '../config/database.js';
 const router = express.Router();
 
 const JWT_SECRET   = process.env.JWT_SECRET   || 'default-secret-key';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
 // ─── Google OAuth2 client ─────────────────────────────────────────────────────
 const oauth2Client = new google.auth.OAuth2(

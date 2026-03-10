@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 
 interface LayoutProps {
   children: ReactNode;
@@ -85,7 +85,6 @@ export default function Layout({ children }: LayoutProps) {
     navigate('/');
   };
 
-  const isActive = (href: string) => location.pathname === href;
   const avatarUrl: string | null = user.avatar_url ?? null;
   const displayName: string = user.name || 'User';
 
@@ -107,7 +106,7 @@ export default function Layout({ children }: LayoutProps) {
       <nav className="sticky top-0 z-40 border-b border-stone-200 bg-white/95 shadow-sm backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between gap-3">
-            <a href="/dashboard" className="flex min-w-0 items-center gap-2.5">
+            <Link to="/dashboard" className="flex min-w-0 items-center gap-2.5">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-stone-900">
                 <span className="text-xs font-bold text-white">H</span>
               </div>
@@ -115,21 +114,23 @@ export default function Layout({ children }: LayoutProps) {
                 <span className="block truncate text-sm font-semibold text-stone-950 sm:text-base">HealthScore</span>
                 <span className="hidden text-[11px] uppercase tracking-[0.2em] text-stone-400 sm:block">Tracker</span>
               </div>
-            </a>
+            </Link>
 
             <div className="hidden items-center gap-1 md:flex">
               {NAV_LINKS.map(({ label, href }) => (
-                <a
+                <NavLink
                   key={href}
-                  href={href}
-                  className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive(href)
-                      ? 'bg-stone-900 text-white'
-                      : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                  }`}
+                  to={href}
+                  className={({ isActive: active }) =>
+                    `rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                      active
+                        ? 'bg-stone-900 text-white'
+                        : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                    }`
+                  }
                 >
                   {label}
-                </a>
+                </NavLink>
               ))}
             </div>
 
@@ -162,8 +163,8 @@ export default function Layout({ children }: LayoutProps) {
                       <p className="truncate text-xs font-semibold text-stone-800">{displayName}</p>
                       <p className="truncate text-xs text-stone-400">{user.email}</p>
                     </div>
-                    <a
-                      href="/activity"
+                    <Link
+                      to="/activity"
                       onClick={() => setDropOpen(false)}
                       className="flex items-center gap-2.5 px-3 py-2 text-sm text-stone-700 transition-colors hover:bg-stone-50"
                     >
@@ -171,9 +172,9 @@ export default function Layout({ children }: LayoutProps) {
                         <ActivityIcon />
                       </span>
                       Activity
-                    </a>
-                    <a
-                      href="/body-metrics"
+                    </Link>
+                    <Link
+                      to="/body-metrics"
                       onClick={() => setDropOpen(false)}
                       className="flex items-center gap-2.5 px-3 py-2 text-sm text-stone-700 transition-colors hover:bg-stone-50"
                     >
@@ -181,9 +182,9 @@ export default function Layout({ children }: LayoutProps) {
                         <BodyMetricsIcon />
                       </span>
                       Body Metrics
-                    </a>
-                    <a
-                      href="/profile"
+                    </Link>
+                    <Link
+                      to="/profile"
                       onClick={() => setDropOpen(false)}
                       className="flex items-center gap-2.5 px-3 py-2 text-sm text-stone-700 transition-colors hover:bg-stone-50"
                     >
@@ -191,7 +192,7 @@ export default function Layout({ children }: LayoutProps) {
                         <ProfileIcon />
                       </span>
                       Profile
-                    </a>
+                    </Link>
                     <button
                       onClick={handleLogout}
                       className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-rose-600 transition-colors hover:bg-rose-50"
@@ -245,24 +246,26 @@ export default function Layout({ children }: LayoutProps) {
 
             <div className="space-y-1">
               {NAV_LINKS.map(({ label, href }) => (
-                <a
+                <NavLink
                   key={href}
-                  href={href}
+                  to={href}
                   onClick={() => setMobileOpen(false)}
-                  className={`block rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
-                    isActive(href)
-                      ? 'bg-stone-900 text-white'
-                      : 'text-stone-600 hover:bg-stone-50'
-                  }`}
+                  className={({ isActive: active }) =>
+                    `block rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                      active
+                        ? 'bg-stone-900 text-white'
+                        : 'text-stone-600 hover:bg-stone-50'
+                    }`
+                  }
                 >
                   {label}
-                </a>
+                </NavLink>
               ))}
             </div>
 
             <div className="mt-3 space-y-1 border-t border-stone-100 pt-3">
-              <a
-                href="/activity"
+              <Link
+                to="/activity"
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-600 hover:bg-stone-50"
               >
@@ -270,9 +273,9 @@ export default function Layout({ children }: LayoutProps) {
                   <ActivityIcon />
                 </span>
                 Activity
-              </a>
-              <a
-                href="/body-metrics"
+              </Link>
+              <Link
+                to="/body-metrics"
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-600 hover:bg-stone-50"
               >
@@ -280,9 +283,9 @@ export default function Layout({ children }: LayoutProps) {
                   <BodyMetricsIcon />
                 </span>
                 Body Metrics
-              </a>
-              <a
-                href="/profile"
+              </Link>
+              <Link
+                to="/profile"
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-600 hover:bg-stone-50"
               >
@@ -290,7 +293,7 @@ export default function Layout({ children }: LayoutProps) {
                   <ProfileIcon />
                 </span>
                 Profile
-              </a>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-rose-600 hover:bg-rose-50"

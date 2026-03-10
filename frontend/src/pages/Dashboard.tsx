@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import MainScoreDisplay from '../components/dashboard/MainScoreDisplay';
 import ScoreCard from '../components/dashboard/ScoreCard';
@@ -352,7 +353,7 @@ export default function Dashboard() {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">This week</p>
                   <h2 className="mt-1 text-base font-semibold tracking-tight text-stone-950">Progress snapshot</h2>
                 </div>
-                <a href="/progress" className="text-xs font-semibold text-stone-500 hover:text-stone-900">See progress</a>
+                <Link to="/progress" className="text-xs font-semibold text-stone-500 hover:text-stone-900">See progress</Link>
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
