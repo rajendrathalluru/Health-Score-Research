@@ -14,6 +14,11 @@ export default function MainScoreDisplay({
   weekLabel,
 }: MainScoreDisplayProps) {
   const percentage = Math.max(0, Math.min(100, (currentScore / maxScore) * 100));
+  const summaryText = percentage >= 75
+    ? 'You are closely following most recommendations this week.'
+    : percentage >= 50
+      ? 'You are meeting some recommendations, with room to improve.'
+      : 'This week is below target. Focus on one or two habits first.';
   const tone = percentage >= 75
     ? {
         stroke: '#2f6f4f',
@@ -33,9 +38,9 @@ export default function MainScoreDisplay({
         };
 
   return (
-    <div className={`rounded-[22px] border border-stone-200 bg-gradient-to-br ${tone.fill} p-5 shadow-sm sm:p-6`}>
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex-1">
+    <div className={`rounded-[22px] border border-stone-200 bg-gradient-to-br ${tone.fill} p-4 shadow-sm sm:p-6`}>
+      <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
+        <div className="min-w-0">
           <div className="mb-4 flex items-center gap-3">
             <div className="h-7 w-1.5 rounded-full bg-stone-900"></div>
             <div>
@@ -58,7 +63,7 @@ export default function MainScoreDisplay({
               <span className={`text-xs font-medium ${trend >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {trend >= 0 ? '↑' : '↓'} {Math.abs(trend).toFixed(1)} points
               </span>
-              <span className="text-xs text-stone-400">from last compare point</span>
+              <span className="text-xs text-stone-400">vs last saved week</span>
             </div>
           </div>
 
@@ -74,9 +79,10 @@ export default function MainScoreDisplay({
           </div>
         </div>
 
-        <div className="flex flex-col items-center rounded-[20px] border border-white/80 bg-white/75 px-4 py-4 backdrop-blur">
-          <div className="relative h-24 w-24 sm:h-28 sm:w-28">
-            <svg className="h-24 w-24 -rotate-90 transform sm:h-28 sm:w-28">
+        <div className="rounded-[20px] border border-white/80 bg-white/75 px-4 py-4 backdrop-blur">
+          <div className="flex items-center gap-4 sm:gap-5 lg:flex-col lg:items-center">
+            <div className="relative h-20 w-20 flex-shrink-0 sm:h-24 sm:w-24">
+            <svg viewBox="0 0 112 112" className="h-20 w-20 -rotate-90 transform sm:h-24 sm:w-24">
               <circle
                 cx="56"
                 cy="56"
@@ -100,20 +106,17 @@ export default function MainScoreDisplay({
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <div className="text-xl font-semibold text-stone-950 sm:text-2xl">{Math.round(percentage)}%</div>
+                <div className="text-lg font-semibold text-stone-950 sm:text-xl">{Math.round(percentage)}%</div>
                 <div className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-stone-400">Aligned</div>
               </div>
             </div>
           </div>
-          <div className="mt-3 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-400">Week Read</p>
-            <p className="mt-1.5 text-xs leading-5 text-stone-600">
-              {percentage >= 75
-                ? 'Strong week across the major recommendations.'
-                : percentage >= 50
-                  ? 'Solid base, but there are clear gains available.'
-                  : 'Focus on a few consistent improvements this week.'}
-            </p>
+            <div className="min-w-0 flex-1 text-left lg:text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-400">This week</p>
+              <p className="mt-1.5 text-sm leading-5 text-stone-600">
+                {summaryText}
+              </p>
+            </div>
           </div>
         </div>
       </div>
