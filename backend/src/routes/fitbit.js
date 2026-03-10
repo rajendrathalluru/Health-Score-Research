@@ -56,6 +56,7 @@ router.get('/auth-url', authenticate, (req, res) => {
     `&response_type=code` +
     `&scope=${SCOPES}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&prompt=${encodeURIComponent('login consent')}` +
     `&state=${state}`;
 
   res.json({ success: true, authUrl });
@@ -122,12 +123,23 @@ router.get('/callback', async (req, res) => {
     // Save token linked to app user_id
     const client = await pool.connect();
     try {
+      const existingLink = await client.query(
+        `SELECT user_id
+         FROM fitbit_tokens
+         WHERE fitbit_user_id = $1
+         LIMIT 1`,
+        [fitbit_user_id]
+      );
+
+      if (existingLink.rows.length && existingLink.rows[0].user_id !== userId) {
+        return res.redirect(`${FRONTEND_URL}/activity?fitbit=already_linked`);
+      }
+
       await client.query(`
         INSERT INTO fitbit_tokens (fitbit_user_id, user_id, access_token, refresh_token, expires_at)
         VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (fitbit_user_id)
         DO UPDATE SET
-          user_id       = EXCLUDED.user_id,
           access_token  = EXCLUDED.access_token,
           refresh_token = EXCLUDED.refresh_token,
           expires_at    = EXCLUDED.expires_at,
@@ -138,11 +150,11 @@ router.get('/callback', async (req, res) => {
     }
 
     // Pass fitbit_user_id back to frontend
-    res.redirect(`${FRONTEND_URL}/dashboard?fitbit=connected&fitbit_user_id=${fitbit_user_id}`);
+    res.redirect(`${FRONTEND_URL}/activity?fitbit=connected&fitbit_user_id=${fitbit_user_id}`);
 
   } catch (err) {
     console.error('Fitbit callback error:', err);
-    res.redirect(`${process.env.FRONTEND_URL}/dashboard?fitbit=error`);
+    res.redirect(`${process.env.FRONTEND_URL}/activity?fitbit=error`);
   }
 });
 

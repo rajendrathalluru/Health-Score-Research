@@ -21,9 +21,31 @@ export default function RegisterPage() {
     }
   }, []);
 
+  const hydrateUserSession = async (token: string, fallbackUser?: unknown) => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.data?.user) {
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+        return;
+      }
+    } catch {
+      // Fall back to register response user below.
+    }
+
+    if (fallbackUser) {
+      localStorage.setItem('user', JSON.stringify(fallbackUser));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const normalizedName = formData.name.trim();
+    const normalizedEmail = formData.email.trim().toLowerCase();
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
@@ -40,8 +62,8 @@ export default function RegisterPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
+          name: normalizedName,
+          email: normalizedEmail,
           password: formData.password
         })
       });
@@ -50,8 +72,8 @@ export default function RegisterPage() {
 
       if (data.success) {
         localStorage.setItem('token', data.data.token);
-        localStorage.setItem('user', JSON.stringify(data.data.user));
-        navigate('/dashboard');
+        await hydrateUserSession(data.data.token, data.data.user);
+        navigate('/dashboard', { replace: true });
       } else {
         setError(data.message || 'Registration failed');
       }
@@ -180,7 +202,7 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={loading || googleLoading}
+              disabled={loading || googleLoading || !formData.name.trim() || !formData.email.trim() || !formData.password || !formData.confirmPassword}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50"
             >
               {loading ? 'Creating account...' : 'Create account'}

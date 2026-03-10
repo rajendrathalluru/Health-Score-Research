@@ -60,6 +60,9 @@ export default function ActivityPage() {
       setSyncMessage('Fitbit connected successfully!');
       void checkFitbitStatus();
       window.history.replaceState({}, '', '/activity');
+    } else if (fitbitStatus === 'already_linked') {
+      setSyncMessage('This Fitbit account is already linked to a different HealthScore account.');
+      window.history.replaceState({}, '', '/activity');
     } else if (fitbitStatus === 'error') {
       setSyncMessage('Fitbit connection failed. Please try again.');
       window.history.replaceState({}, '', '/activity');
@@ -106,6 +109,11 @@ export default function ActivityPage() {
     } catch (err) {
       setSyncMessage(err instanceof Error ? err.message : 'Could not connect to Fitbit. Please try again.');
     }
+  };
+
+  const switchFitbitAccount = () => {
+    window.open('https://dev.fitbit.com/logout', '_blank', 'noopener,noreferrer');
+    setSyncMessage('Fitbit logout opened in a new tab. Sign out there, then return here and connect again.');
   };
 
   const syncFitbit = async () => {
@@ -244,12 +252,20 @@ export default function ActivityPage() {
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={connectFitbit}
-                    className="rounded-xl bg-blue-700 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-blue-800 sm:text-sm"
-                  >
+                  <>
+                    <button
+                      onClick={connectFitbit}
+                      className="rounded-xl bg-blue-700 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-blue-800 sm:text-sm"
+                    >
                       Connect Fitbit
-                  </button>
+                    </button>
+                    <button
+                      onClick={switchFitbitAccount}
+                      className="rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 sm:text-sm"
+                    >
+                      Use Different Fitbit
+                    </button>
+                  </>
                 )}
               </div>
             </div>

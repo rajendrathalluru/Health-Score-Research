@@ -18,24 +18,52 @@ export default function LoginPage() {
     }
   }, []);
 
+  const hydrateUserSession = async (token: string, fallbackUser?: unknown) => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.data?.user) {
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+        return;
+      }
+    } catch {
+      // Fall back to the login response user below.
+    }
+
+    if (fallbackUser) {
+      localStorage.setItem('user', JSON.stringify(fallbackUser));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password;
+
+    if (!normalizedEmail || !normalizedPassword) {
+      setError('Email and password are required.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: normalizedEmail, password: normalizedPassword })
       });
 
       const data = await response.json();
 
       if (data.success) {
         localStorage.setItem('token', data.data.token);
-        localStorage.setItem('user', JSON.stringify(data.data.user));
-        navigate('/dashboard');
+        await hydrateUserSession(data.data.token, data.data.user);
+        navigate('/dashboard', { replace: true });
       } else {
         setError(data.message || 'Login failed');
       }
@@ -133,7 +161,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading || googleLoading}
+              disabled={loading || googleLoading || !email.trim() || !password}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50"
             >
               {loading ? 'Signing in...' : 'Sign in'}
