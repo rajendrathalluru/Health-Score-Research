@@ -62,9 +62,9 @@ router.put('/height', authenticate, async (req, res) => {
   }
 });
 
-// ── POST /api/measurements/activity  (manual weekly MVPA entry) ───────────────
-// Saves total weekly MVPA on the Monday row so weeklyScore.js picks it up
-// when it queries: WHERE date >= weekStart AND date < weekStart + 7 days
+// ── POST /api/measurements/activity  (manual per-day MVPA entry) ──────────────
+// Saves a single day's MVPA for the authenticated user and returns the
+// current week's total so weeklyScore.js can sum the full week.
 router.post('/activity', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -110,7 +110,7 @@ router.post('/activity', authenticate, async (req, res) => {
   }
 });
 
-// ── GET /api/measurements/activity?userId=&weekStart= ─────────────────────────
+// ── GET /api/measurements/activity?weekStart=YYYY-MM-DD ───────────────────────
 router.get('/activity', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;

@@ -31,8 +31,8 @@ function getCurrentWeekDates() {
 }
 
 // ─────────────────────────────────────────
-// GET /api/fitbit/auth-url?userId=123
-// Returns Fitbit authorization URL with userId in state
+// GET /api/fitbit/auth-url
+// Returns Fitbit authorization URL for the authenticated user.
 // ─────────────────────────────────────────
 router.get('/auth-url', authenticate, (req, res) => {
   const userId = req.user.id;
@@ -72,7 +72,7 @@ router.get('/callback', async (req, res) => {
 
   if (error || !code || !state) {
     console.error('Fitbit OAuth error:', error);
-    return res.redirect(`${FRONTEND_URL}/dashboard?fitbit=error`);
+    return res.redirect(`${FRONTEND_URL}/activity?fitbit=error`);
   }
 
   // Decode userId from state
@@ -82,7 +82,7 @@ router.get('/callback', async (req, res) => {
     userId = decoded.userId;
   } catch (e) {
     console.error('Invalid state param:', e);
-    return res.redirect(`${FRONTEND_URL}/dashboard?fitbit=error`);
+    return res.redirect(`${FRONTEND_URL}/activity?fitbit=error`);
   }
 
   try {
@@ -123,28 +123,46 @@ router.get('/callback', async (req, res) => {
     // Save token linked to app user_id
     const client = await pool.connect();
     try {
-      const existingLink = await client.query(
-        `SELECT user_id
-         FROM fitbit_tokens
-         WHERE fitbit_user_id = $1
-         LIMIT 1`,
-        [fitbit_user_id]
-      );
+      try {
+        await client.query('BEGIN');
 
-      if (existingLink.rows.length && existingLink.rows[0].user_id !== userId) {
-        return res.redirect(`${FRONTEND_URL}/activity?fitbit=already_linked`);
+        const existingLink = await client.query(
+          `SELECT user_id
+           FROM fitbit_tokens
+           WHERE fitbit_user_id = $1
+           LIMIT 1`,
+          [fitbit_user_id]
+        );
+
+        if (existingLink.rows.length && existingLink.rows[0].user_id !== userId) {
+          await client.query('ROLLBACK');
+          return res.redirect(`${FRONTEND_URL}/activity?fitbit=already_linked`);
+        }
+
+        // Ensure each HealthScore account keeps only one active Fitbit link.
+        await client.query(
+          `DELETE FROM fitbit_tokens
+           WHERE user_id = $1
+             AND fitbit_user_id <> $2`,
+          [userId, fitbit_user_id]
+        );
+
+        await client.query(`
+          INSERT INTO fitbit_tokens (fitbit_user_id, user_id, access_token, refresh_token, expires_at)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (fitbit_user_id)
+          DO UPDATE SET
+            access_token  = EXCLUDED.access_token,
+            refresh_token = EXCLUDED.refresh_token,
+            expires_at    = EXCLUDED.expires_at,
+            updated_at    = NOW()
+        `, [fitbit_user_id, userId, access_token, refresh_token, expiresAt]);
+
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK');
+        throw txErr;
       }
-
-      await client.query(`
-        INSERT INTO fitbit_tokens (fitbit_user_id, user_id, access_token, refresh_token, expires_at)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (fitbit_user_id)
-        DO UPDATE SET
-          access_token  = EXCLUDED.access_token,
-          refresh_token = EXCLUDED.refresh_token,
-          expires_at    = EXCLUDED.expires_at,
-          updated_at    = NOW()
-      `, [fitbit_user_id, userId, access_token, refresh_token, expiresAt]);
     } finally {
       client.release();
     }
@@ -393,8 +411,8 @@ router.post('/sync', authenticate, async (req, res) => {
 });
 
 // ─────────────────────────────────────────
-// GET /api/fitbit/status?userId=123
-// Check if a user has Fitbit connected
+// GET /api/fitbit/status
+// Check whether the authenticated user has Fitbit connected.
 // ─────────────────────────────────────────
 router.get('/status', authenticate, async (req, res) => {
   const userId = req.user.id;

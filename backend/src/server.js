@@ -10,8 +10,6 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import authRoutes from './routes/auth.js';
 import testRoutes from './routes/test.js';
-import foodRoutes from './routes/food.js';
-import scoreRoutes from './routes/score.js';
 import measurementRoutes from './routes/measurements.js';
 import progressRoutes from './routes/progress.js';
 import fitbitRoutes from './routes/fitbit.js';
@@ -49,8 +47,6 @@ app.get('/api/test', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api', testRoutes);
-app.use('/api/food', foodRoutes);
-app.use('/api/score', scoreRoutes);
 app.use('/api/measurements', measurementRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/fitbit', fitbitRoutes);

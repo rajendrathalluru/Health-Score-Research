@@ -24,12 +24,13 @@ function makeToken(userId, email) {
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    const normalizedEmail = email?.toLowerCase().trim();
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Name, email and password are required' });
     }
 
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
     if (existing.rows.length) {
       return res.status(409).json({ success: false, message: 'Email already registered' });
     }
@@ -40,16 +41,18 @@ router.post('/register', async (req, res) => {
        VALUES ($1, $2, $3)
        RETURNING id, email, name, avatar_url, gender, birth_date, height_cm,
                  cancer_type, cancer_stage, diagnosis_date`,
-      [email.toLowerCase().trim(), hash, name.trim()]
+      [normalizedEmail, hash, name.trim()]
     );
 
-    const user  = result.rows[0];
-    const token = makeToken(user.id, user.email);
+    const user = result.rows[0];
 
     res.status(201).json({
       success: true,
       message: 'Registration successful',
-      data: { user, token },
+      data: {
+        user,
+        should_login: false,
+      },
     });
   } catch (err) {
     console.error('Register error:', err);

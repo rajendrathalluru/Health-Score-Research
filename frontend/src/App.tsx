@@ -4,7 +4,6 @@ import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
-import FoodLoggingPage from './pages/FoodLoggingPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ActivityPage from './pages/ActivityPage';
 import BodyMetricsPage from './pages/BodyMetricsPage';
@@ -67,14 +66,6 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/food-log"
-          element={
-            <ProtectedRoute>
-              <FoodLoggingPage />
             </ProtectedRoute>
           }
         />
