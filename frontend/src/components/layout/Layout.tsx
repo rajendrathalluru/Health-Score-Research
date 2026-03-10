@@ -7,7 +7,7 @@ interface LayoutProps {
 
 const NAV_LINKS = [
   { label: 'Dashboard', href: '/dashboard' },
-  { label: 'Weekly Log', href: '/health-log' },
+  { label: 'Weekly Log', href: '/weekly-log' },
   { label: 'Progress', href: '/progress' },
 ];
 

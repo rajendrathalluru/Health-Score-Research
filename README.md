@@ -49,7 +49,7 @@ Diet scoring is questionnaire-based, not food-entry based.
 - `/login` - email/password login + Google OAuth
 - `/register` - email/password signup + Google OAuth
 - `/dashboard` - weekly overview
-- `/health-log` - weekly questionnaire
+- `/weekly-log` - weekly questionnaire
 - `/activity` - Fitbit + manual activity logging
 - `/body-metrics` - weight and waist tracking
 - `/progress` - score, activity, and body metric trends

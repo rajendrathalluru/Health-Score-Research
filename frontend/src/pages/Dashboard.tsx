@@ -401,7 +401,7 @@ export default function Dashboard() {
 
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {[
-                  { href: '/health-log', title: 'Weekly Log', meta: 'Questionnaire', icon: <WeeklyLogIcon /> },
+                  { href: '/weekly-log', title: 'Weekly Log', meta: 'Questionnaire', icon: <WeeklyLogIcon /> },
                   { href: '/activity', title: 'Activity', meta: fitbitConnected ? 'Fitbit + manual' : 'Manual logging', icon: <ActivityIcon /> },
                   { href: '/body-metrics', title: 'Body Metrics', meta: 'Weight and waist', icon: <BodyMetricsIcon /> },
                   { href: '/profile', title: 'Profile', meta: 'Height and account', icon: <ProfileIcon /> },

@@ -95,21 +95,21 @@ function App() {
         />
 
         <Route
-  path="/health-log"
-  element={
-    <ProtectedRoute>
-      <HealthLog />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/profile"
-  element={
-    <ProtectedRoute>
-      <ProfilePage />
-    </ProtectedRoute>
-  }
-/>
+          path="/weekly-log"
+          element={
+            <ProtectedRoute>
+              <HealthLog />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </Router>
   );
