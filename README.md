@@ -236,10 +236,55 @@ Run backend in production:
 npm run start:backend
 ```
 
+## Docker Deployment
+
+The repo now includes:
+
+- [`docker-compose.yml`](/Users/rajendrathalluru/Documents/healthscore-tracker/docker-compose.yml)
+- [`backend/Dockerfile`](/Users/rajendrathalluru/Documents/healthscore-tracker/backend/Dockerfile)
+- [`frontend/Dockerfile`](/Users/rajendrathalluru/Documents/healthscore-tracker/frontend/Dockerfile)
+- [`frontend/nginx.conf`](/Users/rajendrathalluru/Documents/healthscore-tracker/frontend/nginx.conf)
+
+How it works:
+
+- frontend is built with Vite and served by Nginx
+- Nginx proxies `/api/*` and `/health` to the backend container
+- backend runs as a Node/Express container on port `3001`
+- React Router routes are handled with SPA fallback in Nginx
+
+### Run With Docker
+
+1. Create real env files from the examples:
+   - `backend/.env`
+   - optionally `frontend/.env` for non-Docker local development
+2. Start the stack:
+
+```bash
+docker compose up --build
+```
+
+Default Docker URLs:
+
+- App: `http://localhost:8080`
+- API via proxy: `http://localhost:8080/api`
+- Backend direct: `http://localhost:3001`
+
+### Important OAuth Notes For Docker
+
+When running behind the frontend container on `http://localhost:8080`, use backend env values like:
+
+```bash
+FRONTEND_URL=http://localhost:8080
+GOOGLE_REDIRECT_URI=http://localhost:8080/api/auth/google/callback
+FITBIT_REDIRECT_URI=http://localhost:8080/api/fitbit/callback
+```
+
+That keeps OAuth callbacks on the same public origin and lets Nginx proxy them to the backend container.
+
 ## Deployment Notes
 
 - Set `FRONTEND_URL` in backend env to your deployed frontend URL
-- Set `VITE_API_URL` in frontend env to your deployed backend URL
+- For the Dockerized frontend, the default is relative `/api` proxying, so `VITE_API_URL` can stay empty
 - Update Google OAuth redirect URIs for deployed domains
 - Update Fitbit OAuth redirect URIs for deployed domains
 - Do not commit real `.env` files
