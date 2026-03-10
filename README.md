@@ -222,22 +222,6 @@ in Supabase SQL Editor if that table does not already exist.
 - Weight and waist are tracked separately as body metrics.
 - Weekly score uses current-week measurements first and can derive BMI from profile height + saved weight.
 
-## Removed Legacy Surface
-
-The old food logging / daily food-entry scoring flow is no longer part of the active product.
-
-Removed:
-
-- frontend food logging page
-- legacy `/api/food` route
-- legacy `/api/score` route
-
-Still present but legacy:
-
-- `backend/src/routes/dailyLogs.js`
-
-That route is not part of the current questionnaire-first product flow.
-
 ## Build
 
 Build frontend:
