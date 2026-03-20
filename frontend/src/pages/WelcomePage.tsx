@@ -1,5 +1,7 @@
 import { Link, Navigate } from 'react-router-dom';
 
+const REFERENCE_URL = 'https://epi.grants.cancer.gov/wcrf-aicr-score/details.html#weight';
+
 function PulseIcon() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -73,6 +75,14 @@ export default function WelcomePage() {
           </div>
 
           <div className="hidden items-center gap-2 sm:flex">
+            <a
+              href={REFERENCE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-stone-300/80 bg-white/70 px-4 py-2 text-sm font-medium text-stone-700 backdrop-blur transition-colors hover:bg-white"
+            >
+              Reference
+            </a>
             <Link
               to="/login"
               className="rounded-full border border-stone-300/80 bg-white/70 px-4 py-2 text-sm font-medium text-stone-700 backdrop-blur transition-colors hover:bg-white"

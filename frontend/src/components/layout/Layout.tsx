@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { label: 'Weekly Log', href: '/weekly-log' },
   { label: 'Progress', href: '/progress' },
 ];
+const REFERENCE_URL = 'https://epi.grants.cancer.gov/wcrf-aicr-score/details.html#weight';
 
 function ActivityIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
@@ -132,6 +133,14 @@ export default function Layout({ children }: LayoutProps) {
                   {label}
                 </NavLink>
               ))}
+              <a
+                href={REFERENCE_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-xl px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-50 hover:text-stone-900"
+              >
+                Reference
+              </a>
             </div>
 
             <div className="hidden items-center gap-3 md:flex" ref={dropRef}>
@@ -261,6 +270,15 @@ export default function Layout({ children }: LayoutProps) {
                   {label}
                 </NavLink>
               ))}
+              <a
+                href={REFERENCE_URL}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setMobileOpen(false)}
+                className="block rounded-xl px-3 py-3 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-50"
+              >
+                Reference
+              </a>
             </div>
 
             <div className="mt-3 space-y-1 border-t border-stone-100 pt-3">
