@@ -81,7 +81,7 @@ export default function WelcomePage() {
               rel="noreferrer"
               className="rounded-full border border-stone-300/80 bg-white/70 px-4 py-2 text-sm font-medium text-stone-700 backdrop-blur transition-colors hover:bg-white"
             >
-              Reference
+              Scoring Guide
             </a>
             <Link
               to="/login"
@@ -224,7 +224,7 @@ export default function WelcomePage() {
                   <div className="rounded-[1.5rem] bg-[#fce8e0] p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Body metrics</div>
                     <div className="mt-2 text-3xl font-semibold tracking-tight text-stone-950">72.5</div>
-                    <div className="mt-1 text-sm text-stone-600">Current saved weight in kg</div>
+                    <div className="mt-1 text-sm text-stone-600">Current saved weight</div>
                   </div>
                 </div>
 

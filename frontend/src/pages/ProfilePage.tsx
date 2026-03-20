@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
 import { API_BASE } from '../config/api';
+import { cmToFeetInches, feetInchesToCm, formatFeetInches } from '../utils/units';
 
 const API = API_BASE;
 
@@ -69,7 +70,7 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<any>(null);
   const [form, setForm] = useState({
-    name: '', gender: '', birth_date: '', height_cm: '',
+    name: '', gender: '', birth_date: '', height_feet: '', height_inches: '',
     cancer_type: '', cancer_stage: '', diagnosis_date: '', phone: '',
   });
   const [editing, setEditing] = useState(false);
@@ -110,13 +111,15 @@ export default function ProfilePage() {
   };
 
   const hydrate = (d: any) => {
+    const height = cmToFeetInches(d.height_cm);
     setProfile(d);
     setAvatarFailed(false);
     setForm({
       name:           d.name         ?? '',
       gender:         d.gender       ?? '',
       birth_date:     toDateInput(d.birth_date),
-      height_cm:      d.height_cm != null ? String(d.height_cm) : '',
+      height_feet:    height.feet != null ? String(height.feet) : '',
+      height_inches:  height.inches != null ? String(height.inches) : '',
       cancer_type:    d.cancer_type  ?? '',
       cancer_stage:   d.cancer_stage ?? '',
       diagnosis_date: toDateInput(d.diagnosis_date),
@@ -133,6 +136,17 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     if (!form.name.trim()) { setError('Name is required'); return; }
+    const hasHeight = form.height_feet.trim() !== '' || form.height_inches.trim() !== '';
+    const heightFeet = form.height_feet.trim() === '' ? 0 : Number(form.height_feet);
+    const heightInches = form.height_inches.trim() === '' ? 0 : Number(form.height_inches);
+
+    if (hasHeight) {
+      if (Number.isNaN(heightFeet) || Number.isNaN(heightInches) || heightFeet < 0 || heightInches < 0 || heightInches >= 12) {
+        setError('Enter height using valid feet and inches.');
+        return;
+      }
+    }
+
     setSaving(true); setError(null);
     try {
       const res  = await fetch(`${API}/profile`, {
@@ -141,7 +155,7 @@ export default function ProfilePage() {
           name:           form.name.trim()  || null,
           gender:         form.gender       || null,
           birth_date:     form.birth_date   || null,
-          height_cm:      form.height_cm !== '' ? Number(form.height_cm) : null,
+          height_cm:      hasHeight ? feetInchesToCm(heightFeet, heightInches) : null,
           cancer_type:    form.cancer_type  || null,
           cancer_stage:   form.cancer_stage || null,
           diagnosis_date: form.diagnosis_date || null,
@@ -320,9 +334,36 @@ export default function ProfilePage() {
                 <EditableField label="Gender" name="gender" value={form.gender}
                   onChange={onChange} options={['male', 'female', 'non-binary', 'prefer not to say']}
                   editing={editing} />
-                <EditableField label="Height" name="height_cm" value={form.height_cm}
-                  displayValue={form.height_cm ? `${form.height_cm} cm` : ''}
-                  onChange={onChange} type="number" placeholder="e.g. 175" editing={editing} />
+                <div className="group">
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Height</p>
+                  {editing ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        min={0}
+                        name="height_feet"
+                        value={form.height_feet}
+                        onChange={onChange}
+                        placeholder="ft"
+                        className="w-full bg-transparent border-b-2 border-blue-400 text-gray-900 text-sm py-1 focus:outline-none focus:border-blue-600 transition-colors placeholder:text-gray-300"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        max={11}
+                        name="height_inches"
+                        value={form.height_inches}
+                        onChange={onChange}
+                        placeholder="in"
+                        className="w-full bg-transparent border-b-2 border-blue-400 text-gray-900 text-sm py-1 focus:outline-none focus:border-blue-600 transition-colors placeholder:text-gray-300"
+                      />
+                    </div>
+                  ) : (
+                    <p className={`text-sm font-medium ${profile?.height_cm ? 'text-gray-900' : 'text-gray-300 italic'}`}>
+                      {profile?.height_cm ? formatFeetInches(profile.height_cm) : 'No height added'}
+                    </p>
+                  )}
+                </div>
                 <EditableField label="Phone" name="phone" value={form.phone}
                   onChange={onChange} type="tel" placeholder="+1 555 000 0000" editing={editing} />
               </div>
@@ -358,7 +399,7 @@ export default function ProfilePage() {
               <h2 className="text-base font-semibold text-gray-800">Your Stats</h2>
               {[
                 { label: 'Age',         value: age !== null ? `${age} yrs` : null },
-                { label: 'Height',      value: form.height_cm ? `${form.height_cm} cm` : null },
+                { label: 'Height',      value: profile?.height_cm ? formatFeetInches(profile.height_cm) : null },
                 { label: 'Cancer Type', value: form.cancer_type || null },
                 { label: 'Stage',       value: form.cancer_stage || null },
                 { label: 'Diagnosed',   value: form.diagnosis_date ? formatDate(form.diagnosis_date) : null },

@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import Layout from '../components/layout/Layout';
 import { API_BASE } from '../config/api';
+import { cmToInches, kgToLb } from '../utils/units';
 
 interface ScorePoint {
   isoDate: string;
@@ -124,8 +125,8 @@ export default function ProgressPage() {
         (bodyData.data ?? []).map((item: any) => ({
           isoDate: String(item.date ?? ''),
           date: formatDateLabel(item.date),
-          weight: item.weight_kg !== null && item.weight_kg !== undefined ? Number(item.weight_kg) : null,
-          waist: item.waist_cm !== null && item.waist_cm !== undefined ? Number(item.waist_cm) : null,
+          weight: item.weight_kg !== null && item.weight_kg !== undefined ? kgToLb(Number(item.weight_kg)) : null,
+          waist: item.waist_cm !== null && item.waist_cm !== undefined ? cmToInches(Number(item.waist_cm)) : null,
           bmi: item.bmi !== null && item.bmi !== undefined ? Number(item.bmi) : null,
         }))
       );
@@ -235,14 +236,14 @@ export default function ProgressPage() {
 
                 <div className="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-400">Latest body entry</p>
-                  <div className="mt-2 text-lg font-semibold tracking-tight text-stone-950">
-                    {summary.latestBody?.weight !== null && summary.latestBody?.weight !== undefined
-                      ? `${summary.latestBody.weight.toFixed(1)} kg`
+                    <div className="mt-2 text-lg font-semibold tracking-tight text-stone-950">
+                      {summary.latestBody?.weight !== null && summary.latestBody?.weight !== undefined
+                      ? `${summary.latestBody.weight.toFixed(1)} lb`
                       : '—'}
-                  </div>
+                    </div>
                   <div className="mt-1 text-xs text-stone-500">
                     {summary.latestBody?.waist !== null && summary.latestBody?.waist !== undefined
-                      ? `Waist ${summary.latestBody.waist.toFixed(1)} cm`
+                      ? `Waist ${summary.latestBody.waist.toFixed(1)} in`
                       : 'No waist saved yet'}
                   </div>
                 </div>
@@ -324,8 +325,8 @@ export default function ProgressPage() {
                           <Tooltip
                             formatter={(value, name) => {
                               const numeric = Number(value ?? 0);
-                              if (name === 'Weight') return [`${numeric.toFixed(1)} kg`, name];
-                              if (name === 'Waist') return [`${numeric.toFixed(1)} cm`, name];
+                              if (name === 'Weight') return [`${numeric.toFixed(1)} lb`, name];
+                              if (name === 'Waist') return [`${numeric.toFixed(1)} in`, name];
                               return [numeric, name];
                             }}
                             labelFormatter={(_, payload) => {

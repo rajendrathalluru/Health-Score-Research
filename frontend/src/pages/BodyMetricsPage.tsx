@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import BodyMeasurementsCard from '../components/dashboard/BodyMeasurementsCard';
 import { API_URL } from '../config/api';
+import { formatFeetInches } from '../utils/units';
 
 interface BodyMeasurements {
   weightKg: number | null;
@@ -83,7 +84,7 @@ export default function BodyMetricsPage() {
               <div className="rounded-[18px] bg-stone-50 p-3">
                 <div className="text-sm font-semibold text-stone-900">Profile height</div>
                 <div className="mt-1.5 text-xl font-semibold tracking-tight text-stone-950">
-                  {storedUser?.height_cm ? `${storedUser.height_cm} cm` : 'Missing'}
+                  {storedUser?.height_cm ? formatFeetInches(storedUser.height_cm) : 'Missing'}
                 </div>
                 <div className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-400">Edit in profile</div>
               </div>

@@ -139,7 +139,7 @@ export default function Layout({ children }: LayoutProps) {
                 rel="noreferrer"
                 className="rounded-xl px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-50 hover:text-stone-900"
               >
-                Reference
+                Scoring Guide
               </a>
             </div>
 
@@ -277,7 +277,7 @@ export default function Layout({ children }: LayoutProps) {
                 onClick={() => setMobileOpen(false)}
                 className="block rounded-xl px-3 py-3 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-50"
               >
-                Reference
+                Scoring Guide
               </a>
             </div>
 

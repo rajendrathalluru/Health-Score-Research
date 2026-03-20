@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { cmToInches, inchesToCm, kgToLb, lbToKg } from '../../utils/units';
 
 interface Props {
   initialWeightKg: number | null;
@@ -7,22 +8,24 @@ interface Props {
 }
 
 export default function BodyMeasurementsCard({ initialWeightKg, initialWaistCm, onSave }: Props) {
-  const [weightKg, setWeightKg] = useState(initialWeightKg !== null ? String(initialWeightKg) : '');
-  const [waistCm, setWaistCm] = useState(initialWaistCm !== null ? String(initialWaistCm) : '');
+  const [weightLb, setWeightLb] = useState(initialWeightKg !== null ? String(kgToLb(initialWeightKg)) : '');
+  const [waistInches, setWaistInches] = useState(initialWaistCm !== null ? String(cmToInches(initialWaistCm)) : '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setWeightKg(initialWeightKg !== null ? String(initialWeightKg) : '');
-    setWaistCm(initialWaistCm !== null ? String(initialWaistCm) : '');
+    setWeightLb(initialWeightKg !== null ? String(kgToLb(initialWeightKg)) : '');
+    setWaistInches(initialWaistCm !== null ? String(cmToInches(initialWaistCm)) : '');
   }, [initialWeightKg, initialWaistCm]);
 
   const handleSave = async () => {
-    const parsedWeight = weightKg.trim() === '' ? null : parseFloat(weightKg);
-    const parsedWaist = waistCm.trim() === '' ? null : parseFloat(waistCm);
+    const parsedWeightLb = weightLb.trim() === '' ? null : parseFloat(weightLb);
+    const parsedWaistInches = waistInches.trim() === '' ? null : parseFloat(waistInches);
+    const parsedWeight = parsedWeightLb === null ? null : lbToKg(parsedWeightLb);
+    const parsedWaist = parsedWaistInches === null ? null : inchesToCm(parsedWaistInches);
 
-    if ((parsedWeight !== null && Number.isNaN(parsedWeight)) || (parsedWaist !== null && Number.isNaN(parsedWaist))) {
+    if ((parsedWeightLb !== null && Number.isNaN(parsedWeightLb)) || (parsedWaistInches !== null && Number.isNaN(parsedWaistInches))) {
       setError('Enter valid numeric values for weight and waist circumference.');
       return;
     }
@@ -58,38 +61,38 @@ export default function BodyMeasurementsCard({ initialWeightKg, initialWaistCm, 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-[18px] border border-stone-200 bg-stone-50 p-3">
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Weight (kg)
+            Weight (lb)
           </label>
           <input
             type="number"
             min={0}
             step="0.1"
-            value={weightKg}
+            value={weightLb}
             onChange={(e) => {
-              setWeightKg(e.target.value);
+              setWeightLb(e.target.value);
               setError(null);
               setSaved(false);
             }}
-            placeholder="e.g. 70.5"
+            placeholder="e.g. 155.4"
             className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-stone-400"
           />
         </div>
 
         <div className="rounded-[18px] border border-stone-200 bg-stone-50 p-3">
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Waist Circumference (cm)
+            Waist Circumference (in)
           </label>
           <input
             type="number"
             min={0}
             step="0.1"
-            value={waistCm}
+            value={waistInches}
             onChange={(e) => {
-              setWaistCm(e.target.value);
+              setWaistInches(e.target.value);
               setError(null);
               setSaved(false);
             }}
-            placeholder="e.g. 85"
+            placeholder="e.g. 33.5"
             className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-stone-400"
           />
         </div>
