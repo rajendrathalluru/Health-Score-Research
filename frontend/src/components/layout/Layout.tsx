@@ -112,7 +112,7 @@ export default function Layout({ children }: LayoutProps) {
                 <span className="text-xs font-bold text-white">H</span>
               </div>
               <div className="min-w-0">
-                <span className="block truncate text-sm font-semibold text-stone-950 sm:text-base">HealthScore</span>
+                <span className="block truncate text-sm font-semibold text-stone-950 sm:text-base">ThriveScore</span>
                 <span className="hidden text-[11px] uppercase tracking-[0.2em] text-stone-400 sm:block">Tracker</span>
               </div>
             </Link>

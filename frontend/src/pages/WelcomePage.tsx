@@ -69,7 +69,7 @@ export default function WelcomePage() {
               <PulseIcon />
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">HealthScore</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">ThriveScore</div>
               <div className="text-sm text-stone-600">Cancer survivorship care</div>
             </div>
           </div>
@@ -147,7 +147,7 @@ export default function WelcomePage() {
             </div>
 
             <p className="mt-6 max-w-2xl text-base leading-7 text-stone-700 sm:text-lg">
-              HealthScore helps cancer survivors review movement, healthy-weight signals, and food-pattern habits in one bright, structured weekly check-in.
+              ThriveScore helps cancer survivors review movement, healthy-weight signals, and food-pattern habits in one bright, structured weekly check-in.
             </p>
 
             <div className="mt-10 grid gap-3 sm:grid-cols-3">

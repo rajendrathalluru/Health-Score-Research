@@ -143,7 +143,7 @@ router.get('/callback', async (req, res) => {
           return res.redirect(`${FRONTEND_URL}/activity?fitbit=already_linked`);
         }
 
-        // Ensure each HealthScore account keeps only one active Fitbit link.
+        // Ensure each ThriveScore account keeps only one active Fitbit link.
         await client.query(
           `DELETE FROM fitbit_tokens
            WHERE user_id = $1

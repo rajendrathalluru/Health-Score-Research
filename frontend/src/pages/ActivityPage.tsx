@@ -61,7 +61,7 @@ export default function ActivityPage() {
       void checkFitbitStatus();
       window.history.replaceState({}, '', '/activity');
     } else if (fitbitStatus === 'already_linked') {
-      setSyncMessage('This Fitbit account is already linked to a different HealthScore account.');
+      setSyncMessage('This Fitbit account is already linked to a different ThriveScore account.');
       window.history.replaceState({}, '', '/activity');
     } else if (fitbitStatus === 'error') {
       setSyncMessage('Fitbit connection failed. Please try again.');

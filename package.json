@@ -1,5 +1,5 @@
 {
-  "name": "healthscore-tracker",
+  "name": "thrivescore-tracker",
   "private": true,
   "scripts": {
     "dev:backend": "npm --prefix backend run dev",

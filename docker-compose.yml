@@ -2,7 +2,7 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: healthscore-backend
+    container_name: thrivescore-backend
     env_file:
       - ./backend/.env
     environment:
@@ -22,7 +22,7 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: ""
-    container_name: healthscore-frontend
+    container_name: thrivescore-frontend
     depends_on:
       - backend
     ports:

@@ -1,6 +1,6 @@
-# HealthScore Tracker
+# ThriveScore Tracker
 
-HealthScore Tracker is a survivorship-focused web application for cancer survivors to review weekly health habits using a structured WCRF/AICR-style score model.
+ThriveScore Tracker is a survivorship-focused web application for cancer survivors to review weekly health habits using a structured WCRF/AICR-style score model.
 
 The app combines:
 - weekly questionnaire-based scoring
@@ -214,7 +214,7 @@ in Supabase SQL Editor if that table does not already exist.
 ### Fitbit
 
 - Fitbit is linked to the authenticated app user.
-- The app now prevents the same Fitbit account from being silently reassigned across different HealthScore users.
+- The app now prevents the same Fitbit account from being silently reassigned across different ThriveScore users.
 - Fitbit sync stores current-week activity per day into `daily_measurements`.
 
 ### Measurements

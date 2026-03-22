@@ -81,7 +81,7 @@ export default function RegisterPage() {
                 </svg>
               </div>
               <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-400">HealthScore</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-400">ThriveScore</div>
                 <div className="text-sm text-stone-500">Cancer survivorship tracking</div>
               </div>
             </div>

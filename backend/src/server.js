@@ -41,7 +41,7 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/api', (req, res) => {
-  res.json({ message: 'HealthScore Tracker API', version: '1.0.0' });
+  res.json({ message: 'ThriveScore Tracker API', version: '1.0.0' });
 });
 
 app.get('/api/test', (req, res) => {
@@ -78,7 +78,7 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════╗
-║  HealthScore Tracker API Server       ║
+║  ThriveScore Tracker API Server       ║
 ║  Port: ${PORT}                            ║
 ║  Environment: ${process.env.NODE_ENV || 'development'}                ║
 ╚════════════════════════════════════════╝
