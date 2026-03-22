@@ -23,6 +23,7 @@ The current app flow is:
    - weight
    - waist circumference
    - height stored in profile
+   - frontend uses US-facing units for body inputs and display
 6. Dashboard and progress review
 
 ## Active Scoring Model
@@ -220,6 +221,14 @@ in Supabase SQL Editor if that table does not already exist.
 
 - Height is profile data.
 - Weight and waist are tracked separately as body metrics.
+- Frontend body measurements use:
+  - `lb` for weight
+  - `ft/in` for height
+  - `in` for waist circumference
+- Backend and database still store metric values:
+  - `kg` for weight
+  - `cm` for height
+  - `cm` for waist
 - Weekly score uses current-week measurements first and can derive BMI from profile height + saved weight.
 
 ## Build

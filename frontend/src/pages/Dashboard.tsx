@@ -225,7 +225,7 @@ export default function Dashboard() {
     weight_score: { title: 'Healthy Weight', desc: 'BMI and waist circumference thresholds' },
     activity_score: { title: 'Physical Activity', desc: 'Total moderate-to-vigorous activity minutes per week' },
     plant_based_score: { title: 'Plant-Based Foods', desc: 'Average of fruit & vegetables, pulses, and whole grains' },
-    fast_processed_score: { title: 'Fast/Processed Foods', desc: 'Combined frequency of fast foods and sweets/pastries' },
+    fast_processed_score: { title: 'Fast/Processed Foods', desc: 'fast foods and sweets/pastries' },
     red_processed_meat_score: { title: 'Red & Processed Meat', desc: 'Weekly red meat and processed meat pattern' },
     sugary_drinks_score: { title: 'Sugary Drinks', desc: 'Sugar-sweetened drink frequency' },
     alcohol_score: { title: 'Alcohol', desc: 'Alcohol intake frequency (sex-specific threshold)' },

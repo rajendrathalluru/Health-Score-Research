@@ -153,6 +153,8 @@ export default function ProgressPage() {
     const latestBody = [...bodyHistory].reverse().find((item) => item.weight !== null || item.waist !== null) ?? null;
     const activityTotal = activityHistory.reduce((sum, item) => sum + item.mvpa, 0);
     const avgActivity = activityHistory.length ? Math.round(activityTotal / activityHistory.length) : 0;
+    const totalScore = scoreHistory.reduce((sum, item) => sum + item.score, 0);
+    const avgScore = scoreHistory.length ? Number((totalScore / scoreHistory.length).toFixed(1)) : null;
 
     return {
       latestScore,
@@ -160,6 +162,7 @@ export default function ProgressPage() {
       latestBody,
       activityTotal,
       avgActivity,
+      avgScore,
     };
   }, [activityHistory, bodyHistory, scoreHistory]);
 
@@ -254,7 +257,10 @@ export default function ProgressPage() {
                   <div className="mb-4 flex flex-col gap-1">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Weekly score</p>
                     <h2 className="text-lg font-semibold tracking-tight text-stone-950">Score trend</h2>
-                    <p className="text-sm text-stone-500">Shows the actual weekly questionnaire score stored for each completed week.</p>
+                    <p className="text-sm text-stone-500">
+                      Shows the actual weekly questionnaire score stored for each completed week.
+                      {summary.avgScore !== null ? ` Average score in this range: ${summary.avgScore.toFixed(1)}.` : ''}
+                    </p>
                   </div>
                   <div className="h-[280px] sm:h-[320px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -274,6 +280,19 @@ export default function ProgressPage() {
                           />
                         <ReferenceLine y={3.5} stroke="#f59e0b" strokeDasharray="4 4" />
                         <ReferenceLine y={5.25} stroke="#16a34a" strokeDasharray="4 4" />
+                        {summary.avgScore !== null && (
+                          <ReferenceLine
+                            y={summary.avgScore}
+                            stroke="#2563eb"
+                            strokeDasharray="6 6"
+                            label={{
+                              value: `Avg ${summary.avgScore.toFixed(1)}`,
+                              position: 'insideTopRight',
+                              fill: '#2563eb',
+                              fontSize: 12,
+                            }}
+                          />
+                        )}
                         <Area type="monotone" dataKey="score" stroke="#111827" strokeWidth={2.5} fill="url(#scoreFill)" />
                       </AreaChart>
                     </ResponsiveContainer>
