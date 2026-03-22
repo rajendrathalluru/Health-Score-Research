@@ -50,6 +50,17 @@ function LogoutIcon({ className = 'h-4 w-4' }: { className?: string }) {
   );
 }
 
+function ThriveScoreMark({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v10" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 12.5h7" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 12.5 18 15" />
+    </svg>
+  );
+}
+
 function initials(name: string) {
   return name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 }
@@ -109,7 +120,9 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex h-16 items-center justify-between gap-3">
             <Link to="/dashboard" className="flex min-w-0 items-center gap-2.5">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-stone-900">
-                <span className="text-xs font-bold text-white">H</span>
+                <span className="text-white">
+                  <ThriveScoreMark className="h-4 w-4" />
+                </span>
               </div>
               <div className="min-w-0">
                 <span className="block truncate text-sm font-semibold text-stone-950 sm:text-base">ThriveScore</span>
