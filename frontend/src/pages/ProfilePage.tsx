@@ -207,13 +207,13 @@ export default function ProfilePage() {
                     onError={() => setAvatarFailed(true)}
                   />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-violet-500 to-blue-500
+                  <div className="w-full h-full bg-stone-900
                                   flex items-center justify-center text-white text-2xl font-bold">
                     {form.name ? initials(form.name) : '?'}
                   </div>
                 )
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-violet-500 to-blue-500
+                <div className="w-full h-full bg-stone-900
                                 flex items-center justify-center text-white text-2xl font-bold">
                   {form.name ? initials(form.name) : '?'}
                 </div>
