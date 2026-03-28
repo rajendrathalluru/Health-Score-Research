@@ -173,6 +173,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.success && data.connected) {
         setFitbitConnected(true);
+        setFitbitData(data.data ?? null);
       } else {
         setFitbitConnected(false);
         setFitbitData(null);
@@ -180,6 +181,7 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Failed to check Fitbit status:', err);
       setFitbitConnected(false);
+      setFitbitData(null);
     }
   };
 

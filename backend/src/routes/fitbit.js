@@ -34,6 +34,119 @@ function getCurrentWeekDates() {
   return dates;
 }
 
+function formatDateOnly(date) {
+  return date.toISOString().split('T')[0];
+}
+
+function parseAnchorDate(value) {
+  if (!value || typeof value !== 'string') return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+}
+
+function getDatesForPeriod(period = 'week', anchorDateValue = null) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const anchor = parseAnchorDate(anchorDateValue) ?? new Date(today);
+
+  let start = new Date(anchor);
+  let end = new Date(anchor);
+
+  if (period === 'month') {
+    start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  } else if (period === 'day') {
+    start = new Date(anchor);
+    end = new Date(anchor);
+  } else {
+    const diff = (anchor.getDay() + 6) % 7;
+    start.setDate(anchor.getDate() - diff);
+    end = new Date(start);
+    end.setDate(start.getDate() + 6);
+  }
+
+  if (end > today) {
+    end = new Date(today);
+  }
+
+  const dates = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    dates.push(formatDateOnly(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return {
+    dates,
+    start: formatDateOnly(start),
+    end: formatDateOnly(end),
+  };
+}
+
+async function getCurrentWeekSummary(client, userId) {
+  const weekDates = getCurrentWeekDates();
+  const weekStart = weekDates[0];
+  const latestDate = weekDates[weekDates.length - 1];
+
+  if (!weekStart) {
+    return null;
+  }
+
+  const [aggregateResult, latestMeasurementResult, userResult] = await Promise.all([
+    client.query(
+      `SELECT
+         COALESCE(SUM(COALESCE(mvpa_minutes, 0)), 0) AS active_minutes,
+         COALESCE(SUM(COALESCE(steps, 0)), 0) AS steps
+       FROM daily_measurements
+       WHERE user_id = $1
+         AND date >= $2::date
+         AND date < ($2::date + interval '7 days')`,
+      [userId, weekStart]
+    ),
+    client.query(
+      `SELECT date::text AS date, weight_kg, bmi, waist_cm
+       FROM daily_measurements
+       WHERE user_id = $1
+         AND date >= $2::date
+         AND date < ($2::date + interval '7 days')
+       ORDER BY date DESC
+       LIMIT 1`,
+      [userId, weekStart]
+    ),
+    client.query(
+      `SELECT height_cm
+       FROM users
+       WHERE id = $1
+       LIMIT 1`,
+      [userId]
+    )
+  ]);
+
+  const aggregate = aggregateResult.rows[0] ?? {};
+  const latestMeasurement = latestMeasurementResult.rows[0] ?? null;
+  const user = userResult.rows[0] ?? null;
+
+  return {
+    date: latestDate,
+    weekStart,
+    datesSynced: weekDates,
+    steps: Number(aggregate.steps ?? 0),
+    activeMinutes: Number(aggregate.active_minutes ?? 0),
+    caloriesBurned: 0,
+    weightKg: latestMeasurement?.weight_kg ?? null,
+    heightCm: user?.height_cm ?? null,
+    bmi: latestMeasurement?.bmi ?? null,
+    waistCm: latestMeasurement?.waist_cm ?? null,
+    sources: {
+      weight: latestMeasurement?.weight_kg !== null && latestMeasurement?.weight_kg !== undefined ? 'stored_metric' : null,
+      activity: 'fitbit_or_manual_from_current_week',
+      bmi: latestMeasurement?.bmi !== null && latestMeasurement?.bmi !== undefined ? 'stored_metric' : 'unavailable'
+    }
+  };
+}
+
 // ─────────────────────────────────────────
 // GET /api/fitbit/auth-url
 // Returns Fitbit authorization URL for the authenticated user.
@@ -63,6 +176,12 @@ router.get('/auth-url', authenticate, (req, res) => {
     `&prompt=${encodeURIComponent('login consent')}` +
     `&state=${state}`;
 
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+    'Surrogate-Control': 'no-store',
+  });
   res.json({ success: true, authUrl });
 });
 
@@ -426,13 +545,281 @@ router.get('/status', authenticate, async (req, res) => {
       'SELECT fitbit_user_id FROM fitbit_tokens WHERE user_id = $1',
       [userId]
     );
+    const connected = result.rows.length > 0;
+    const summary = connected ? await getCurrentWeekSummary(client, userId) : null;
+
     res.json({
       success: true,
-      connected: result.rows.length > 0,
-      fitbit_user_id: result.rows[0]?.fitbit_user_id ?? null
+      connected,
+      fitbit_user_id: result.rows[0]?.fitbit_user_id ?? null,
+      data: summary
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ─────────────────────────────────────────
+// GET /api/fitbit/week-zones
+// Returns current-week Fitbit Active Zone Minutes for visuals only.
+// This does not affect activity scoring.
+// ─────────────────────────────────────────
+router.get('/week-zones', authenticate, async (req, res) => {
+  const userId = req.user.id;
+  const client = await pool.connect();
+
+  try {
+    const tokenResult = await client.query(
+      'SELECT fitbit_user_id, access_token, refresh_token, expires_at FROM fitbit_tokens WHERE user_id = $1',
+      [userId]
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Fitbit not connected' });
+    }
+
+    let { fitbit_user_id, access_token, refresh_token, expires_at } = tokenResult.rows[0];
+    if (new Date() >= new Date(expires_at)) {
+      access_token = await refreshAccessToken(fitbit_user_id, refresh_token, client);
+    }
+
+    const weekDates = getCurrentWeekDates();
+    const zoneResponses = await Promise.all(
+      weekDates.map((date) =>
+        fetch(`https://api.fitbit.com/1/user/-/activities/active-zone-minutes/date/${date}/${date}.json`, {
+          headers: { Authorization: `Bearer ${access_token}` }
+        })
+      )
+    );
+
+    const forbiddenResponse = zoneResponses.find((response) => response.status === 401 || response.status === 403);
+    if (forbiddenResponse) {
+      return res.json({
+        success: true,
+        available: false,
+        message: 'Active Zone Minutes are not available for this Fitbit app configuration.',
+      });
+    }
+
+    const payloads = await Promise.all(zoneResponses.map((response) => response.json()));
+
+    const days = weekDates.map((date, index) => {
+      const row =
+        payloads[index]?.['activities-active-zone-minutes']?.[0] ??
+        payloads[index]?.activitiesActiveZoneMinutes?.[0] ??
+        payloads[index]?.['activitiesActiveZoneMinutes']?.[0] ??
+        null;
+
+      const fatBurn = Number(
+        row?.fatBurnActiveZoneMinutes ??
+        row?.value?.fatBurnActiveZoneMinutes ??
+        0
+      );
+      const cardio = Number(
+        row?.cardioActiveZoneMinutes ??
+        row?.value?.cardioActiveZoneMinutes ??
+        0
+      );
+      const peak = Number(
+        row?.peakActiveZoneMinutes ??
+        row?.value?.peakActiveZoneMinutes ??
+        0
+      );
+      const activeZoneMinutes = Number(
+        row?.activeZoneMinutes ??
+        row?.value?.activeZoneMinutes ??
+        (fatBurn + cardio + peak)
+      );
+
+      return {
+        date,
+        fatBurn,
+        cardio,
+        peak,
+        zoneMinutes: activeZoneMinutes,
+      };
+    });
+
+    const totals = days.reduce((acc, day) => ({
+      fatBurn: acc.fatBurn + day.fatBurn,
+      cardio: acc.cardio + day.cardio,
+      peak: acc.peak + day.peak,
+      zoneMinutes: acc.zoneMinutes + day.zoneMinutes,
+    }), {
+      fatBurn: 0,
+      cardio: 0,
+      peak: 0,
+      zoneMinutes: 0,
+    });
+
+    res.json({
+      success: true,
+      available: true,
+      data: {
+        weekStart: weekDates[0],
+        days,
+        totals,
+      }
+    });
+  } catch (err) {
+    console.error('Fitbit week zones error:', err);
+    res.status(500).json({ success: false, message: 'Failed to load Fitbit heart-rate zone minutes', error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ─────────────────────────────────────────
+// GET /api/fitbit/timeseries
+// Visual-only time series for steps, active minutes, and active zone minutes.
+// Does not change sync or scoring logic.
+// ─────────────────────────────────────────
+router.get('/timeseries', authenticate, async (req, res) => {
+  const userId = req.user.id;
+  const metric = String(req.query.metric || 'steps');
+  const period = String(req.query.period || 'week');
+  const anchorDate = req.query.anchorDate ? String(req.query.anchorDate) : null;
+  const allowedMetrics = new Set(['steps', 'active', 'azm']);
+  const allowedPeriods = new Set(['day', 'week', 'month']);
+
+  if (!allowedMetrics.has(metric)) {
+    return res.status(400).json({ success: false, message: 'Invalid metric' });
+  }
+  if (!allowedPeriods.has(period)) {
+    return res.status(400).json({ success: false, message: 'Invalid period' });
+  }
+
+  const client = await pool.connect();
+  try {
+    const { dates, start, end } = getDatesForPeriod(period, anchorDate);
+
+    if (metric === 'steps' || metric === 'active') {
+      const result = await client.query(
+        `SELECT date::text AS date, COALESCE(steps, 0) AS steps, COALESCE(mvpa_minutes, 0) AS mvpa_minutes
+         FROM daily_measurements
+         WHERE user_id = $1
+           AND date >= $2::date
+           AND date <= $3::date
+         ORDER BY date ASC`,
+        [userId, start, end]
+      );
+
+      const byDate = new Map(result.rows.map((row) => [row.date, row]));
+      const points = dates.map((date) => ({
+        date,
+        value: Number(
+          metric === 'steps'
+            ? byDate.get(date)?.steps ?? 0
+            : byDate.get(date)?.mvpa_minutes ?? 0
+        ),
+      }));
+
+      const total = points.reduce((sum, point) => sum + point.value, 0);
+      const average = points.length ? total / points.length : 0;
+
+      return res.json({
+        success: true,
+        available: true,
+        data: {
+          metric,
+          period,
+          start,
+          end,
+          points,
+          total,
+          average,
+        },
+      });
+    }
+
+    const tokenResult = await client.query(
+      'SELECT fitbit_user_id, access_token, refresh_token, expires_at FROM fitbit_tokens WHERE user_id = $1',
+      [userId]
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.json({
+        success: true,
+        available: false,
+        message: 'Fitbit is not connected.',
+      });
+    }
+
+    let { fitbit_user_id, access_token, refresh_token, expires_at } = tokenResult.rows[0];
+    if (new Date() >= new Date(expires_at)) {
+      access_token = await refreshAccessToken(fitbit_user_id, refresh_token, client);
+    }
+
+    const responses = await Promise.all(
+      dates.map((date) =>
+        fetch(`https://api.fitbit.com/1/user/-/activities/active-zone-minutes/date/${date}/${date}.json`, {
+          headers: { Authorization: `Bearer ${access_token}` }
+        })
+      )
+    );
+
+    const blocked = responses.find((response) => response.status === 401 || response.status === 403 || response.status === 404);
+    if (blocked) {
+      return res.json({
+        success: true,
+        available: false,
+        message: 'Active Zone Minutes are not available for this Fitbit app configuration.',
+      });
+    }
+
+    const payloads = await Promise.all(responses.map((response) => response.json()));
+    const points = dates.map((date, index) => {
+      const row =
+        payloads[index]?.['activities-active-zone-minutes']?.[0] ??
+        payloads[index]?.activitiesActiveZoneMinutes?.[0] ??
+        payloads[index]?.['activitiesActiveZoneMinutes']?.[0] ??
+        null;
+
+      const fatBurn = Number(
+        row?.fatBurnActiveZoneMinutes ??
+        row?.value?.fatBurnActiveZoneMinutes ??
+        0
+      );
+      const cardio = Number(
+        row?.cardioActiveZoneMinutes ??
+        row?.value?.cardioActiveZoneMinutes ??
+        0
+      );
+      const peak = Number(
+        row?.peakActiveZoneMinutes ??
+        row?.value?.peakActiveZoneMinutes ??
+        0
+      );
+      const value = Number(
+        row?.activeZoneMinutes ??
+        row?.value?.activeZoneMinutes ??
+        (fatBurn + cardio + peak)
+      );
+
+      return { date, value, fatBurn, cardio, peak };
+    });
+
+    const total = points.reduce((sum, point) => sum + point.value, 0);
+    const average = points.length ? total / points.length : 0;
+
+    res.json({
+      success: true,
+      available: true,
+      data: {
+        metric,
+        period,
+        start,
+        end,
+        points,
+        total,
+        average,
+      },
+    });
+  } catch (err) {
+    console.error('Fitbit timeseries error:', err);
+    res.status(500).json({ success: false, message: 'Failed to load Fitbit time series', error: err.message });
   } finally {
     client.release();
   }
