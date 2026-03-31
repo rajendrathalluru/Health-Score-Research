@@ -8,7 +8,6 @@ interface LayoutProps {
 interface StoredUser {
   name?: string;
   email?: string;
-  avatar_url?: string | null;
 }
 
 const NAV_LINKS = [
@@ -77,7 +76,6 @@ export default function Layout({ children }: LayoutProps) {
 
   const [dropOpen, setDropOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [avatarFailed, setAvatarFailed] = useState(false);
   const user: StoredUser = (() => {
     try {
       return JSON.parse(localStorage.getItem('user') || '{}') as StoredUser;
@@ -102,17 +100,9 @@ export default function Layout({ children }: LayoutProps) {
     navigate('/');
   };
 
-  const avatarUrl: string | null = user.avatar_url ?? null;
   const displayName: string = user.name || 'User';
 
-  const avatarNode = avatarUrl && !avatarFailed ? (
-    <img
-      src={avatarUrl}
-      alt="avatar"
-      className="h-full w-full object-cover"
-      onError={() => setAvatarFailed(true)}
-    />
-  ) : (
+  const avatarNode = (
     <div className="flex h-full w-full items-center justify-center bg-stone-900 text-[10px] font-bold text-white">
       {initials(displayName)}
     </div>

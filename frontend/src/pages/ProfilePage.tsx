@@ -53,8 +53,8 @@ function EditableField({
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   type?: string; options?: string[]; placeholder?: string; editing: boolean;
 }) {
-  const inputCls = `w-full bg-transparent border-b-2 border-blue-400 text-gray-900 text-sm
-    py-1 focus:outline-none focus:border-blue-600 transition-colors placeholder:text-gray-300`;
+  const inputCls = `w-full bg-transparent border-b-2 border-stone-300 text-stone-900 text-sm
+    py-1 focus:outline-none focus:border-stone-900 transition-colors placeholder:text-stone-300`;
 
   const shown = displayValue ?? value;
 
@@ -94,13 +94,11 @@ export default function ProfilePage() {
   const [saving, setSaving]   = useState(false);
   const [saved, setSaved]     = useState(false);
   const [error, setError]     = useState<string | null>(null);
-  const [avatarFailed, setAvatarFailed] = useState(false);
   const [fitbitConnected, setFitbitConnected] = useState(false);
 
   const hydrate = useCallback((d: ProfileData) => {
     const height = cmToFeetInches(d.height_cm ?? null);
     setProfile(d);
-    setAvatarFailed(false);
     setForm({
       name:           d.name         ?? '',
       gender:         d.gender       ?? '',
@@ -192,7 +190,13 @@ export default function ProfilePage() {
   };
 
   const age     = calcAge(form.birth_date || null);
-  const avatarUrl = profile?.avatar_url;
+  const overviewItems = [
+    { label: 'Age', value: age !== null ? `${age} years` : null },
+    { label: 'Height', value: profile?.height_cm ? formatFeetInches(profile.height_cm) : null },
+    { label: 'Cancer Type', value: form.cancer_type || null },
+    { label: 'Stage', value: form.cancer_stage || null },
+    { label: 'Diagnosed', value: form.diagnosis_date ? formatDate(form.diagnosis_date) : null },
+  ];
 
   if (loading) {
     return (
@@ -206,268 +210,235 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-
-        {/* ── Top: avatar + name + edit button ─────────────────────────── */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-
-          {/* Avatar */}
-          <div className="relative flex-shrink-0">
-            <div className="w-24 h-24 rounded-3xl overflow-hidden shadow-lg ring-4 ring-white">
-              {avatarUrl ? (
-                avatarUrl && !avatarFailed ? (
-                  <img
-                    src={avatarUrl}
-                    alt="avatar"
-                    className="w-full h-full object-cover"
-                    onError={() => setAvatarFailed(true)}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-stone-900
-                                  flex items-center justify-center text-white text-2xl font-bold">
-                    {form.name ? initials(form.name) : '?'}
-                  </div>
-                )
-              ) : (
-                <div className="w-full h-full bg-stone-900
-                                flex items-center justify-center text-white text-2xl font-bold">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+              <div className="relative flex-shrink-0">
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] bg-stone-900 text-3xl font-semibold text-white shadow-sm ring-1 ring-stone-200">
                   {form.name ? initials(form.name) : '?'}
                 </div>
+                <span className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-4 border-white ${fitbitConnected ? 'bg-emerald-400' : 'bg-stone-300'}`} />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-400">Profile</p>
+                {editing ? (
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={onChange}
+                    placeholder="Your name"
+                    className="mt-2 w-full max-w-md border-b-2 border-stone-300 bg-transparent pb-1 text-3xl font-semibold tracking-tight text-stone-950 outline-none focus:border-stone-900"
+                  />
+                ) : (
+                  <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">
+                    {form.name || 'Your Name'}
+                  </h1>
+                )}
+                <p className="mt-2 text-sm text-stone-500">{profile?.email}</p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {age !== null && (
+                    <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700">
+                      {age} years old
+                    </span>
+                  )}
+                  {form.gender && (
+                    <span className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-medium capitalize text-sky-700">
+                      {form.gender}
+                    </span>
+                  )}
+                  {form.cancer_type && (
+                    <span className="rounded-full border border-rose-100 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700">
+                      {form.cancer_type}
+                    </span>
+                  )}
+                  {profile?.google_id && (
+                    <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-medium text-stone-600">
+                      Google account
+                    </span>
+                  )}
+                  <span className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                    fitbitConnected
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-stone-200 bg-stone-50 text-stone-500'
+                  }`}>
+                    {fitbitConnected ? 'Fitbit connected' : 'Fitbit not connected'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start">
+              {!editing ? (
+                <button
+                  onClick={() => { setEditing(true); setError(null); }}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-stone-200 bg-white px-5 py-2.5 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-.793.793-2.828-2.828.793-.793ZM11.379 5.793 3 14.172V17h2.828l8.38-8.379-2.83-2.828Z" />
+                  </svg>
+                  Edit profile
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleCancel}
+                    className="rounded-2xl border border-stone-200 px-4 py-2.5 text-sm font-medium text-stone-600 transition hover:bg-stone-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="rounded-2xl bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-60"
+                  >
+                    {saving ? 'Saving…' : 'Save changes'}
+                  </button>
+                </>
               )}
             </div>
-            {/* Online dot */}
-            <span className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-400
-                             rounded-full border-2 border-white shadow-sm" />
-          </div>
-
-          {/* Name + subtitle */}
-          <div className="flex-1">
-            {editing ? (
-              <input
-                name="name" value={form.name} onChange={onChange}
-                placeholder="Your name"
-                className="text-2xl sm:text-3xl font-bold text-gray-900 bg-transparent
-                           border-b-2 border-blue-400 focus:outline-none focus:border-blue-600
-                           w-full max-w-sm transition-colors"
-              />
-            ) : (
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                {form.name || 'Your Name'}
-              </h1>
-            )}
-            <p className="text-gray-500 text-sm mt-1">{profile?.email}</p>
-
-            {/* Soft tags */}
-            <div className="flex flex-wrap gap-2 mt-3">
-              {age !== null && (
-                <span className="text-xs bg-violet-50 text-violet-700 px-3 py-1 rounded-full font-medium">
-                  {age} years old
-                </span>
-              )}
-              {form.gender && (
-                <span className="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full font-medium capitalize">
-                  {form.gender}
-                </span>
-              )}
-              {form.cancer_type && (
-                <span className="text-xs bg-rose-50 text-rose-600 px-3 py-1 rounded-full font-medium">
-                  🎗️ {form.cancer_type}
-                </span>
-              )}
-              {profile?.google_id && (
-                <span className="text-xs bg-gray-50 text-gray-500 px-3 py-1 rounded-full font-medium border border-gray-100">
-                  Google
-                </span>
-              )}
-              <span className={`text-xs px-3 py-1 rounded-full font-medium border ${
-                fitbitConnected
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                  : 'bg-gray-50 text-gray-500 border-gray-100'
-              }`}>
-                {fitbitConnected ? 'Fitbit Connected' : 'Fitbit Not Connected'}
-              </span>
-            </div>
-          </div>
-
-          {/* Edit / Save / Cancel actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {!editing ? (
-              <button
-                onClick={() => { setEditing(true); setError(null); }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200
-                           bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold
-                           shadow-sm transition-all hover:shadow-md"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-.793.793-2.828-2.828.793-.793ZM11.379 5.793 3 14.172V17h2.828l8.38-8.379-2.83-2.828Z" />
-                </svg>
-                Edit Profile
-              </button>
-            ) : (
-              <>
-                <button onClick={handleCancel}
-                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm
-                             font-medium hover:bg-gray-50 transition-all">
-                  Cancel
-                </button>
-                <button onClick={handleSave} disabled={saving}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm
-                             font-semibold shadow-sm transition-all disabled:opacity-60">
-                  {saving ? 'Saving…' : 'Save'}
-                </button>
-              </>
-            )}
           </div>
         </div>
 
         {/* ── Status banners ─────────────────────────────────────────────── */}
         {error && (
-          <div className="bg-rose-50 border border-rose-100 text-rose-600 text-sm
-                          rounded-2xl px-5 py-3 flex items-center gap-2">
-            <span>⚠️</span>{error}
+          <div className="mt-5 flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700">
+            <span className="font-semibold">Error</span>
+            <span>{error}</span>
           </div>
         )}
         {saved && (
-          <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm
-                          rounded-2xl px-5 py-3 flex items-center gap-2">
-            <span>✅</span> Profile updated
+          <div className="mt-5 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-700">
+            <span className="font-semibold">Saved</span>
+            <span>Profile updated</span>
           </div>
         )}
 
         {/* ── Content grid ───────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.45fr_0.55fr]">
 
-          {/* Left — main info (3/5) */}
-          <div className="lg:col-span-3 space-y-6">
-
-            {/* About you */}
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-6">
-              <h2 className="text-base font-semibold text-gray-800">About You</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <EditableField label="Date of Birth" name="birth_date" value={form.birth_date}
-                  displayValue={form.birth_date ? formatDate(form.birth_date) ?? '' : ''}
-                  onChange={onChange} type="date" editing={editing} />
-                <EditableField label="Gender" name="gender" value={form.gender}
-                  onChange={onChange} options={['male', 'female', 'non-binary', 'prefer not to say']}
-                  editing={editing} />
-                <div className="group">
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Height</p>
-                  {editing ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="number"
-                        min={0}
-                        name="height_feet"
-                        value={form.height_feet}
-                        onChange={onChange}
-                        placeholder="ft"
-                        className="w-full bg-transparent border-b-2 border-blue-400 text-gray-900 text-sm py-1 focus:outline-none focus:border-blue-600 transition-colors placeholder:text-gray-300"
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        max={11}
-                        name="height_inches"
-                        value={form.height_inches}
-                        onChange={onChange}
-                        placeholder="in"
-                        className="w-full bg-transparent border-b-2 border-blue-400 text-gray-900 text-sm py-1 focus:outline-none focus:border-blue-600 transition-colors placeholder:text-gray-300"
-                      />
-                    </div>
-                  ) : (
-                    <p className={`text-sm font-medium ${profile?.height_cm ? 'text-gray-900' : 'text-gray-300 italic'}`}>
-                      {profile?.height_cm ? formatFeetInches(profile.height_cm) : 'No height added'}
-                    </p>
-                  )}
+          <div className="space-y-6">
+            <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+              <div className="mb-6 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Profile details</p>
+                  <h2 className="mt-2 text-xl font-semibold tracking-tight text-stone-950">Personal and health information</h2>
                 </div>
-                <EditableField label="Phone" name="phone" value={form.phone}
-                  onChange={onChange} type="tel" placeholder="+1 555 000 0000" editing={editing} />
+                <p className="max-w-xs text-sm text-stone-500">A single place to keep the core details that support the rest of your tracking.</p>
               </div>
-            </div>
 
-            {/* Health journey */}
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-gray-800">Health Journey</h2>
-                <span className="text-xs text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
-                  Optional
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <EditableField label="Cancer Type" name="cancer_type" value={form.cancer_type}
-                  onChange={onChange} options={CANCER_TYPES} editing={editing} />
-                <EditableField label="Stage" name="cancer_stage" value={form.cancer_stage}
-                  onChange={onChange} options={CANCER_STAGES} editing={editing} />
-                <div className="sm:col-span-2">
-                  <EditableField label="Diagnosis Date" name="diagnosis_date" value={form.diagnosis_date}
-                    displayValue={form.diagnosis_date ? formatDate(form.diagnosis_date) ?? '' : ''}
+              <div className="mb-8">
+                <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">About you</p>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <EditableField label="Date of Birth" name="birth_date" value={form.birth_date}
+                    displayValue={form.birth_date ? formatDate(form.birth_date) ?? '' : ''}
                     onChange={onChange} type="date" editing={editing} />
+                  <EditableField label="Gender" name="gender" value={form.gender}
+                    onChange={onChange} options={['male', 'female', 'non-binary', 'prefer not to say']}
+                    editing={editing} />
+                  <div className="group">
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-gray-400">Height</p>
+                    {editing ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          type="number"
+                          min={0}
+                          name="height_feet"
+                          value={form.height_feet}
+                          onChange={onChange}
+                          placeholder="ft"
+                          className="w-full bg-transparent border-b-2 border-stone-300 text-stone-900 text-sm py-1 focus:outline-none focus:border-stone-900 transition-colors placeholder:text-stone-300"
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          max={11}
+                          name="height_inches"
+                          value={form.height_inches}
+                          onChange={onChange}
+                          placeholder="in"
+                          className="w-full bg-transparent border-b-2 border-stone-300 text-stone-900 text-sm py-1 focus:outline-none focus:border-stone-900 transition-colors placeholder:text-stone-300"
+                        />
+                      </div>
+                    ) : (
+                      <p className={`text-sm font-medium ${profile?.height_cm ? 'text-gray-900' : 'text-gray-300 italic'}`}>
+                        {profile?.height_cm ? formatFeetInches(profile.height_cm) : 'No height added'}
+                      </p>
+                    )}
+                  </div>
+                  <EditableField label="Phone" name="phone" value={form.phone}
+                    onChange={onChange} type="tel" placeholder="+1 555 000 0000" editing={editing} />
+                </div>
+              </div>
+
+              <div className="border-t border-stone-100 pt-8">
+                <div className="mb-6 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Health journey</p>
+                    <h3 className="mt-2 text-lg font-semibold tracking-tight text-stone-950">Treatment history</h3>
+                  </div>
+                  <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-500">
+                    Optional
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <EditableField label="Cancer Type" name="cancer_type" value={form.cancer_type}
+                    onChange={onChange} options={CANCER_TYPES} editing={editing} />
+                  <EditableField label="Stage" name="cancer_stage" value={form.cancer_stage}
+                    onChange={onChange} options={CANCER_STAGES} editing={editing} />
+                  <div className="sm:col-span-2">
+                    <EditableField label="Diagnosis Date" name="diagnosis_date" value={form.diagnosis_date}
+                      displayValue={form.diagnosis_date ? formatDate(form.diagnosis_date) ?? '' : ''}
+                      onChange={onChange} type="date" editing={editing} />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right — sidebar (2/5) */}
-          <div className="lg:col-span-2 space-y-4">
-
-            {/* Your stats */}
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-4">
-              <h2 className="text-base font-semibold text-gray-800">Your Stats</h2>
-              {[
-                { label: 'Age',         value: age !== null ? `${age} yrs` : null },
-                { label: 'Height',      value: profile?.height_cm ? formatFeetInches(profile.height_cm) : null },
-                { label: 'Cancer Type', value: form.cancer_type || null },
-                { label: 'Stage',       value: form.cancer_stage || null },
-                { label: 'Diagnosed',   value: form.diagnosis_date ? formatDate(form.diagnosis_date) : null },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex items-center justify-between py-2.5
-                                            border-b border-gray-50 last:border-0">
-                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                    {label}
-                  </span>
-                  <span className={`text-sm font-semibold ${value ? 'text-gray-900' : 'text-gray-300'}`}>
-                    {value ?? '—'}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Account */}
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-4">
-              <h2 className="text-base font-semibold text-gray-800">Account</h2>
-              <div className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50">
-                <div className="w-9 h-9 rounded-xl bg-white border border-gray-100 shadow-sm
-                                flex items-center justify-center text-base flex-shrink-0">
-                  {profile?.google_id ? '🔵' : '🔑'}
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-700">
-                    {profile?.google_id ? 'Google Account' : 'Email & Password'}
-                  </p>
-                  <p className="text-xs text-gray-400 truncate max-w-[140px]">{profile?.email}</p>
+          <div className="space-y-6">
+            <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Overview</p>
+              <h2 className="mt-2 text-xl font-semibold tracking-tight text-stone-950">Snapshot</h2>
+              <div className="mt-6 space-y-4">
+                {overviewItems.map(({ label, value }) => (
+                  <div key={label} className="flex items-start justify-between gap-4 border-b border-stone-100 pb-4 last:border-0 last:pb-0">
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+                      {label}
+                    </span>
+                    <span className={`text-right text-sm font-medium ${value ? 'text-stone-950' : 'text-stone-300'}`}>
+                      {value ?? '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 border-t border-stone-100 pt-6">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Account</p>
+                <div className="mt-4 rounded-[22px] border border-stone-200 bg-stone-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-stone-200 bg-white text-stone-700">
+                      {profile?.google_id ? 'G' : 'E'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-stone-900">
+                        {profile?.google_id ? 'Google sign-in' : 'Email & password'}
+                      </p>
+                      <p className="truncate text-xs text-stone-500">{profile?.email}</p>
+                    </div>
+                  </div>
+                  {profile?.created_at && (
+                    <div className="mt-4 border-t border-stone-200 pt-4 text-xs text-stone-500">
+                      Member since {new Date(profile.created_at).toLocaleDateString('en-US', {
+                        month: 'long', year: 'numeric',
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
-              {profile?.created_at && (
-                <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" clipRule="evenodd"
-                      d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" />
-                  </svg>
-                  Member since {new Date(profile.created_at).toLocaleDateString('en-US', {
-                    month: 'long', year: 'numeric',
-                  })}
-                </div>
-              )}
             </div>
-
-            {/* Tip card */}
-            <div className="bg-gradient-to-br from-violet-50 to-blue-50 rounded-3xl border border-violet-100 p-5">
-              <p className="text-xs font-semibold text-violet-700 mb-1">💡 Did you know?</p>
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Completing your profile helps us personalise your weekly health score and give more accurate recommendations.
-              </p>
-            </div>
-
           </div>
         </div>
       </div>
