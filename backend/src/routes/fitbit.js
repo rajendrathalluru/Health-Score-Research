@@ -87,6 +87,12 @@ function getDatesForPeriod(period = 'week', anchorDateValue = null) {
   };
 }
 
+function getElapsedDateCount(dates) {
+  const today = formatLocalDateOnly(new Date());
+  const elapsed = dates.filter((date) => date <= today).length;
+  return elapsed > 0 ? elapsed : dates.length;
+}
+
 async function getCurrentWeekSummary(client, userId) {
   const weekDates = getCurrentWeekDates();
   const weekStart = weekDates[0];
@@ -719,7 +725,8 @@ router.get('/timeseries', authenticate, async (req, res) => {
       }));
 
       const total = points.reduce((sum, point) => sum + point.value, 0);
-      const average = points.length ? total / points.length : 0;
+      const divisor = getElapsedDateCount(dates);
+      const average = divisor ? total / divisor : 0;
 
       return res.json({
         success: true,
@@ -804,7 +811,8 @@ router.get('/timeseries', authenticate, async (req, res) => {
     });
 
     const total = points.reduce((sum, point) => sum + point.value, 0);
-    const average = points.length ? total / points.length : 0;
+    const divisor = getElapsedDateCount(dates);
+    const average = divisor ? total / divisor : 0;
 
     res.json({
       success: true,
