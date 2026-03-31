@@ -224,7 +224,7 @@ export default function Dashboard() {
   const syncedStepCount = fitbitData?.steps ?? 0;
   const questionLabels: Record<string, { title: string; desc: string }> = {
     weight_score: { title: 'Healthy Weight', desc: 'BMI and waist circumference thresholds' },
-    activity_score: { title: 'Physical Activity', desc: 'Total moderate-to-vigorous activity minutes per week' },
+    activity_score: { title: 'Physical Activity', desc: 'Total active minutes per week' },
     plant_based_score: { title: 'Plant-Based Foods', desc: 'Average of fruit & vegetables, pulses, and whole grains' },
     fast_processed_score: { title: 'Fast/Processed Foods', desc: 'fast foods and sweets/pastries' },
     red_processed_meat_score: { title: 'Red & Processed Meat', desc: 'Weekly red meat and processed meat pattern' },
@@ -251,7 +251,7 @@ export default function Dashboard() {
       }))
     : [
         { id: 1, title: 'Healthy Weight', score: p(scoreData?.weight_score), max: 1, desc: 'BMI and waist circumference' },
-        { id: 2, title: 'Physical Activity', score: p(scoreData?.activity_score), max: 1, desc: '150+ min/week MVPA — via Fitbit' },
+        { id: 2, title: 'Physical Activity', score: p(scoreData?.activity_score), max: 1, desc: '150+ active min/week — via Fitbit or manual log' },
         { id: 3, title: 'Plant Foods', score: p(scoreData?.plant_score), max: 1, desc: 'Fruits, vegetables and fiber' },
         { id: 4, title: 'Processed Foods', score: p(scoreData?.upf_score), max: 1, desc: 'Ultra-processed food intake' },
         { id: 5, title: 'Red and Processed Meat', score: p(scoreData?.meat_score), max: 1, desc: 'Weekly meat consumption' },

@@ -93,11 +93,38 @@ function formatSignedDelta(value: number) {
   return value > 0 ? `+${abs}` : `-${abs}`;
 }
 
+function formatStepTick(value: number) {
+  if (value >= 1000) {
+    const compact = value % 1000 === 0 ? (value / 1000).toFixed(0) : (value / 1000).toFixed(1);
+    return `${compact}k`;
+  }
+  return `${value}`;
+}
+
+function getCurrentMonthValue() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+function getMonthRange(monthValue: string) {
+  const [year, month] = monthValue.split('-').map(Number);
+  if (!year || !month) return null;
+
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const endDate = new Date(year, month, 0);
+  const end = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+  return { start, end };
+}
+
 export default function ProgressPage() {
   const [scoreHistory, setScoreHistory] = useState<ScorePoint[]>([]);
   const [bodyHistory, setBodyHistory] = useState<BodyPoint[]>([]);
   const [activityHistory, setActivityHistory] = useState<ActivityPoint[]>([]);
-  const [days, setDays] = useState(90);
+  const [days, setDays] = useState(30);
+  const [filterMode, setFilterMode] = useState<'range' | 'month'>('range');
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthValue);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -115,10 +142,16 @@ export default function ProgressPage() {
     setError(null);
 
     try {
+      const monthRange = filterMode === 'month' ? getMonthRange(selectedMonth) : null;
+      const query =
+        monthRange
+          ? `start=${encodeURIComponent(monthRange.start)}&end=${encodeURIComponent(monthRange.end)}`
+          : `days=${days}`;
+
       const [scoresRes, bodyRes, activityRes] = await Promise.all([
-        fetch(`${API_BASE}/progress/scores?days=${days}`, { headers }),
-        fetch(`${API_BASE}/progress/body-metrics?days=${days}`, { headers }),
-        fetch(`${API_BASE}/progress/activity?days=${Math.min(days, 90)}`, { headers }),
+        fetch(`${API_BASE}/progress/scores?${query}`, { headers }),
+        fetch(`${API_BASE}/progress/body-metrics?${query}`, { headers }),
+        fetch(`${API_BASE}/progress/activity?${query}`, { headers }),
       ]);
 
       const [scoresData, bodyData, activityData] = await Promise.all([
@@ -167,7 +200,7 @@ export default function ProgressPage() {
     } finally {
       setLoading(false);
     }
-  }, [days, headers]);
+  }, [days, filterMode, headers, selectedMonth]);
 
   useEffect(() => {
     void fetchHistory();
@@ -206,16 +239,40 @@ export default function ProgressPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-stone-500">Range</span>
-              <select
-                value={days}
-                onChange={(e) => setDays(parseInt(e.target.value, 10))}
-                className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 outline-none focus:border-stone-400"
-              >
-                <option value={30}>30 days</option>
-                <option value={90}>90 days</option>
-                <option value={180}>180 days</option>
-              </select>
+              <div className="inline-flex rounded-xl border border-stone-200 bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setFilterMode('range')}
+                  className={`rounded-lg px-3 py-1.5 text-sm ${filterMode === 'range' ? 'bg-stone-950 text-white' : 'text-stone-600'}`}
+                >
+                  By range
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterMode('month')}
+                  className={`rounded-lg px-3 py-1.5 text-sm ${filterMode === 'month' ? 'bg-stone-950 text-white' : 'text-stone-600'}`}
+                >
+                  By month
+                </button>
+              </div>
+              {filterMode === 'range' ? (
+                <select
+                  value={days}
+                  onChange={(e) => setDays(parseInt(e.target.value, 10))}
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 outline-none focus:border-stone-400"
+                >
+                  <option value={30}>30 days</option>
+                  <option value={90}>90 days</option>
+                  <option value={180}>180 days</option>
+                </select>
+              ) : (
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 outline-none focus:border-stone-400"
+                />
+              )}
             </div>
           </div>
 
@@ -260,7 +317,7 @@ export default function ProgressPage() {
                 <div className="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-400">Activity average</p>
                   <div className="mt-2 text-3xl font-semibold tracking-tight text-stone-950">{summary.avgActivity}</div>
-                  <div className="mt-1 text-xs text-stone-500">Average MVPA minutes per logged day in this range</div>
+                  <div className="mt-1 text-xs text-stone-500">Average active minutes per logged day in this range</div>
                 </div>
 
                 <div className="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm">
@@ -330,24 +387,39 @@ export default function ProgressPage() {
                     <div className="mb-4 flex flex-col gap-1">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Activity</p>
                       <h2 className="text-lg font-semibold tracking-tight text-stone-950">Daily activity trend</h2>
-                      <p className="text-sm text-stone-500">Bars show MVPA minutes. The line shows steps when available.</p>
+                      <p className="text-sm text-stone-500">Bars show active minutes on the left axis. The amber line shows steps on the right axis.</p>
                     </div>
                     <div className="h-[280px] sm:h-[320px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={activityHistory}>
                           <CartesianGrid stroke="#e7e5e4" vertical={false} />
                           <XAxis dataKey="date" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
-                          <YAxis yAxisId="left" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
-                          <YAxis yAxisId="right" orientation="right" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
+                          <YAxis
+                            yAxisId="left"
+                            tick={{ fill: '#78716c', fontSize: 12 }}
+                            tickLine={false}
+                            axisLine={false}
+                            label={{ value: 'Minutes', angle: -90, position: 'insideLeft', fill: '#78716c', fontSize: 11, dy: 34 }}
+                          />
+                          <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            tick={{ fill: '#78716c', fontSize: 12 }}
+                            tickFormatter={formatStepTick}
+                            tickLine={false}
+                            axisLine={false}
+                            label={{ value: 'Steps', angle: 90, position: 'insideRight', fill: '#78716c', fontSize: 11, dy: -34 }}
+                          />
                           <Tooltip
                             formatter={(value, name) => {
                               const numeric = Number(value ?? 0);
-                              return [name === 'steps' ? numeric.toLocaleString() : `${numeric} min`, name === 'steps' ? 'Steps' : 'MVPA'];
+                              const isSteps = name === 'Steps' || name === 'steps';
+                              return [isSteps ? numeric.toLocaleString() : `${numeric} min`, isSteps ? 'Steps' : 'Active minutes'];
                             }}
                             labelFormatter={(_, payload) => payload?.[0]?.payload?.isoDate ? formatDateLabel(payload[0].payload.isoDate, true) : ''}
                           />
                           <Legend />
-                          <Bar yAxisId="left" dataKey="mvpa" fill="#111827" radius={[6, 6, 0, 0]} name="MVPA" />
+                          <Bar yAxisId="left" dataKey="mvpa" fill="#111827" radius={[6, 6, 0, 0]} name="Active minutes" />
                           <Line yAxisId="right" type="monotone" dataKey="steps" stroke="#d97706" strokeWidth={2} dot={false} name="Steps" />
                         </ComposedChart>
                       </ResponsiveContainer>
