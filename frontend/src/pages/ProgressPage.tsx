@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Area,
   AreaChart,
@@ -39,6 +39,26 @@ interface ActivityPoint {
   date: string;
   mvpa: number;
   steps: number;
+}
+
+interface RawScoreItem {
+  week_start_date?: unknown;
+  total_score?: unknown;
+  max_possible_score?: unknown;
+  risk_level?: unknown;
+}
+
+interface RawBodyItem {
+  date?: unknown;
+  weight_kg?: unknown;
+  waist_cm?: unknown;
+  bmi?: unknown;
+}
+
+interface RawActivityItem {
+  date?: unknown;
+  mvpa_minutes?: unknown;
+  steps?: unknown;
 }
 
 function normalizeDateValue(value: unknown): Date | null {
@@ -82,13 +102,15 @@ export default function ProgressPage() {
   const [error, setError] = useState<string | null>(null);
 
   const token = localStorage.getItem('token');
-  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+  const headers = useMemo<Record<string, string>>(() => {
+    const nextHeaders: Record<string, string> = {};
+    if (token) {
+      nextHeaders.Authorization = `Bearer ${token}`;
+    }
+    return nextHeaders;
+  }, [token]);
 
-  useEffect(() => {
-    void fetchHistory();
-  }, [days]);
-
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -112,17 +134,17 @@ export default function ProgressPage() {
       }
 
       setScoreHistory(
-        (scoresData.data ?? []).map((item: any) => ({
+        ((scoresData.data ?? []) as RawScoreItem[]).map((item) => ({
           isoDate: String(item.week_start_date ?? ''),
           date: formatDateLabel(item.week_start_date),
           score: Number(item.total_score ?? 0),
           maxScore: Number(item.max_possible_score ?? 7),
-          risk: item.risk_level ?? 'High',
+          risk: typeof item.risk_level === 'string' ? item.risk_level : 'High',
         }))
       );
 
       setBodyHistory(
-        (bodyData.data ?? []).map((item: any) => ({
+        ((bodyData.data ?? []) as RawBodyItem[]).map((item) => ({
           isoDate: String(item.date ?? ''),
           date: formatDateLabel(item.date),
           weight: item.weight_kg !== null && item.weight_kg !== undefined ? kgToLb(Number(item.weight_kg)) : null,
@@ -132,7 +154,7 @@ export default function ProgressPage() {
       );
 
       setActivityHistory(
-        (activityData.data ?? []).map((item: any) => ({
+        ((activityData.data ?? []) as RawActivityItem[]).map((item) => ({
           isoDate: String(item.date ?? ''),
           date: formatDateLabel(item.date),
           mvpa: Number(item.mvpa_minutes ?? 0),
@@ -145,7 +167,11 @@ export default function ProgressPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [days, headers]);
+
+  useEffect(() => {
+    void fetchHistory();
+  }, [fetchHistory]);
 
   const summary = useMemo(() => {
     const latestScore = scoreHistory[scoreHistory.length - 1] ?? null;

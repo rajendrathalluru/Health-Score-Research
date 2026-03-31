@@ -1,8 +1,14 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react';
-import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 
 interface LayoutProps {
   children: ReactNode;
+}
+
+interface StoredUser {
+  name?: string;
+  email?: string;
+  avatar_url?: string | null;
 }
 
 const NAV_LINKS = [
@@ -67,19 +73,18 @@ function initials(name: string) {
 
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
-  const location = useLocation();
   const dropRef = useRef<HTMLDivElement>(null);
 
-  const [user, setUser] = useState<any>({});
   const [dropOpen, setDropOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
-
-  useEffect(() => {
-    setUser(JSON.parse(localStorage.getItem('user') || '{}'));
-    setAvatarFailed(false);
-    setMobileOpen(false);
-  }, [location.pathname]);
+  const user: StoredUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}') as StoredUser;
+    } catch {
+      return {};
+    }
+  })();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {

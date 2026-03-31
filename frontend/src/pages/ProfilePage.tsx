@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Layout from '../components/layout/Layout';
 import { API_BASE } from '../config/api';
 import { cmToFeetInches, feetInchesToCm, formatFeetInches } from '../utils/units';
@@ -12,6 +12,22 @@ const CANCER_TYPES = [
   'Thyroid', 'Lymphoma', 'Leukemia', 'Other',
 ];
 const CANCER_STAGES = ['Stage I', 'Stage II', 'Stage III', 'Stage IV', 'Remission', 'Not specified'];
+
+interface ProfileData {
+  id?: string;
+  name?: string;
+  email?: string;
+  avatar_url?: string | null;
+  google_id?: string | null;
+  gender?: string | null;
+  birth_date?: string | null;
+  height_cm?: number | null;
+  cancer_type?: string | null;
+  cancer_stage?: string | null;
+  diagnosis_date?: string | null;
+  phone?: string | null;
+  created_at?: string | null;
+}
 
 function calcAge(birth: string | null) {
   if (!birth) return null;
@@ -66,9 +82,9 @@ function EditableField({
 
 export default function ProfilePage() {
   const token = localStorage.getItem('token');
-  const hdrs  = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  const hdrs  = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [form, setForm] = useState({
     name: '', gender: '', birth_date: '', height_feet: '', height_inches: '',
     cancer_type: '', cancer_stage: '', diagnosis_date: '', phone: '',
@@ -81,37 +97,8 @@ export default function ProfilePage() {
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [fitbitConnected, setFitbitConnected] = useState(false);
 
-  useEffect(() => {
-    void fetchProfile();
-    void fetchFitbitStatus();
-  }, []);
-
-  const fetchProfile = async () => {
-    setLoading(true);
-    try {
-      const res  = await fetch(`${API}/profile`, { headers: hdrs });
-      const data = await res.json();
-      if (data.success) hydrate(data.data);
-      else throw new Error();
-    } catch {
-      const stored = JSON.parse(localStorage.getItem('user') || '{}');
-      if (stored.id) hydrate(stored);
-      else setError('Could not load profile.');
-    } finally { setLoading(false); }
-  };
-
-  const fetchFitbitStatus = async () => {
-    try {
-      const res = await fetch(`${API}/fitbit/status`, { headers: hdrs });
-      const data = await res.json();
-      setFitbitConnected(Boolean(data.success && data.connected));
-    } catch {
-      setFitbitConnected(false);
-    }
-  };
-
-  const hydrate = (d: any) => {
-    const height = cmToFeetInches(d.height_cm);
+  const hydrate = useCallback((d: ProfileData) => {
+    const height = cmToFeetInches(d.height_cm ?? null);
     setProfile(d);
     setAvatarFailed(false);
     setForm({
@@ -125,7 +112,36 @@ export default function ProfilePage() {
       diagnosis_date: toDateInput(d.diagnosis_date),
       phone:          d.phone        ?? '',
     });
-  };
+  }, []);
+
+  const fetchProfile = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res  = await fetch(`${API}/profile`, { headers: hdrs });
+      const data = await res.json();
+      if (data.success) hydrate(data.data as ProfileData);
+      else throw new Error();
+    } catch {
+      const stored = JSON.parse(localStorage.getItem('user') || '{}') as ProfileData;
+      if (stored.id) hydrate(stored);
+      else setError('Could not load profile.');
+    } finally { setLoading(false); }
+  }, [hdrs, hydrate]);
+
+  const fetchFitbitStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/fitbit/status`, { headers: hdrs });
+      const data = await res.json();
+      setFitbitConnected(Boolean(data.success && data.connected));
+    } catch {
+      setFitbitConnected(false);
+    }
+  }, [hdrs]);
+
+  useEffect(() => {
+    void fetchProfile();
+    void fetchFitbitStatus();
+  }, [fetchFitbitStatus, fetchProfile]);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -164,14 +180,14 @@ export default function ProfilePage() {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.message);
-      const stored = JSON.parse(localStorage.getItem('user') || '{}');
+      const stored = JSON.parse(localStorage.getItem('user') || '{}') as ProfileData;
       localStorage.setItem('user', JSON.stringify({ ...stored, ...data.data }));
-      hydrate(data.data);
+      hydrate(data.data as ProfileData);
       setEditing(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (e: any) {
-      setError(e.message ?? 'Save failed');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Save failed');
     } finally { setSaving(false); }
   };
 

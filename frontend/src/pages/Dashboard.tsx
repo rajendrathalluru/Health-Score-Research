@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import MainScoreDisplay from '../components/dashboard/MainScoreDisplay';
@@ -103,36 +103,15 @@ export default function Dashboard() {
   const token     = localStorage.getItem('token');
   const weekStart = getCurrentWeekStart();
 
-  const headers = {
+  const headers = useMemo(() => ({
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  }), [token]);
 
   const p = (v: string | number | null | undefined): number =>
     v === null || v === undefined ? 0 : parseFloat(String(v)) || 0;
 
-  // ── On mount: load score + check Fitbit status ─────────────────────────────
-  useEffect(() => {
-    loadWeeklyScore();
-    checkFitbitStatus();
-    loadManualActivity();
-  }, []);
-
-  // ── Handle Fitbit OAuth redirect params ───────────────────────────────────
-  useEffect(() => {
-    const params     = new URLSearchParams(window.location.search);
-    const fitbitStatus = params.get('fitbit');
-
-    if (fitbitStatus === 'connected') {
-      checkFitbitStatus();
-      window.history.replaceState({}, '', '/dashboard');
-    } else if (fitbitStatus === 'error') {
-      window.history.replaceState({}, '', '/dashboard');
-    }
-  }, []);
-
-  // ── Weekly score ──────────────────────────────────────────────────────────
-  const loadWeeklyScore = async () => {
+  const loadWeeklyScore = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -145,7 +124,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [headers, weekStart]);
 
   const handleRefresh = async () => {
     try {
@@ -159,7 +138,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.success && data.data) setScoreData(data.data);
       else setError(data.message || 'Failed to refresh score.');
-    } catch (err) {
+    } catch {
       setError('Failed to refresh score. Please try again.');
     } finally {
       setRefreshing(false);
@@ -167,7 +146,7 @@ export default function Dashboard() {
   };
 
   // ── Fitbit ────────────────────────────────────────────────────────────────
-  const checkFitbitStatus = async () => {
+  const checkFitbitStatus = useCallback(async () => {
     try {
       const res  = await fetch(`${API_URL}/api/fitbit/status`, { headers });
       const data = await res.json();
@@ -183,10 +162,10 @@ export default function Dashboard() {
       setFitbitConnected(false);
       setFitbitData(null);
     }
-  };
+  }, [headers]);
 
   // ── Manual activity ───────────────────────────────────────────────────────
-  const loadManualActivity = async () => {
+  const loadManualActivity = useCallback(async () => {
     try {
       const res  = await fetch(`${API_URL}/api/measurements/activity?weekStart=${weekStart}`, { headers });
       const data = await res.json();
@@ -196,7 +175,27 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Failed to load manual activity:', err);
     }
-  };
+  }, [headers, weekStart]);
+
+  // ── On mount: load score + check Fitbit status ─────────────────────────────
+  useEffect(() => {
+    void loadWeeklyScore();
+    void checkFitbitStatus();
+    void loadManualActivity();
+  }, [loadWeeklyScore, checkFitbitStatus, loadManualActivity]);
+
+  // ── Handle Fitbit OAuth redirect params ───────────────────────────────────
+  useEffect(() => {
+    const params     = new URLSearchParams(window.location.search);
+    const fitbitStatus = params.get('fitbit');
+
+    if (fitbitStatus === 'connected') {
+      void checkFitbitStatus();
+      window.history.replaceState({}, '', '/dashboard');
+    } else if (fitbitStatus === 'error') {
+      window.history.replaceState({}, '', '/dashboard');
+    }
+  }, [checkFitbitStatus]);
 
   if (loading) {
     return (

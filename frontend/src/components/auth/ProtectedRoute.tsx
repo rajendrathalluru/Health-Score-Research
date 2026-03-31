@@ -9,11 +9,7 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [status, setStatus] = useState<'checking' | 'valid' | 'invalid'>('checking');
 
-  useEffect(() => {
-    validateToken();
-  }, []);
-
-  const validateToken = async () => {
+  async function validateToken() {
     const token = localStorage.getItem('token');
 
     if (!token) {
@@ -41,7 +37,15 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       const token = localStorage.getItem('token');
       setStatus(token ? 'valid' : 'invalid');
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void validateToken();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   if (status === 'checking') {
     return (

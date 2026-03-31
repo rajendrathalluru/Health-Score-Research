@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import BodyMeasurementsCard from '../components/dashboard/BodyMeasurementsCard';
@@ -16,16 +16,12 @@ export default function BodyMetricsPage() {
   const token = localStorage.getItem('token');
   const today = new Date().toISOString().split('T')[0];
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const headers = {
+  const headers = useMemo(() => ({
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  }), [token]);
 
-  useEffect(() => {
-    void loadBodyMeasurements();
-  }, []);
-
-  const loadBodyMeasurements = async () => {
+  const loadBodyMeasurements = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/api/measurements/${today}`, { headers });
       const data = await res.json();
@@ -38,7 +34,14 @@ export default function BodyMetricsPage() {
     } catch {
       // ignore
     }
-  };
+  }, [headers, today]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadBodyMeasurements();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadBodyMeasurements]);
 
   const saveBodyMeasurements = async ({ weightKg, waistCm }: BodyMeasurements) => {
     const res = await fetch(`${API_URL}/api/measurements/log`, {

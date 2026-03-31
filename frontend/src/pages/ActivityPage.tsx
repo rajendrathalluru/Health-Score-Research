@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Layout from '../components/layout/Layout';
 import ManualActivityInput from '../components/dashboard/ManualActivityInput';
@@ -117,38 +117,12 @@ export default function ActivityPage() {
 
   const token = localStorage.getItem('token');
   const weekStart = getCurrentWeekStart();
-  const headers = {
+  const headers = useMemo(() => ({
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  }), [token]);
 
-  useEffect(() => {
-    void checkFitbitStatus();
-    void loadManualActivity();
-  }, []);
-
-  useEffect(() => {
-    void loadTimeSeries(selectedMetric, selectedPeriod);
-  }, [selectedMetric, selectedPeriod, fitbitConnected, anchorDate]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const fitbitStatus = params.get('fitbit');
-
-    if (fitbitStatus === 'connected') {
-      setSyncMessage('Fitbit connected successfully!');
-      void checkFitbitStatus();
-      window.history.replaceState({}, '', '/activity');
-    } else if (fitbitStatus === 'already_linked') {
-      setSyncMessage('This Fitbit account is already linked to a different ThriveScore account.');
-      window.history.replaceState({}, '', '/activity');
-    } else if (fitbitStatus === 'error') {
-      setSyncMessage('Fitbit connection failed. Please try again.');
-      window.history.replaceState({}, '', '/activity');
-    }
-  }, []);
-
-  const checkFitbitStatus = async () => {
+  const checkFitbitStatus = useCallback(async () => {
     try {
       setFitbitLoading(true);
       const res = await fetch(`${API_URL}/api/fitbit/status`, { headers });
@@ -172,9 +146,9 @@ export default function ActivityPage() {
     } finally {
       setFitbitLoading(false);
     }
-  };
+  }, [headers, selectedMetric]);
 
-  const loadTimeSeries = async (
+  const loadTimeSeries = useCallback(async (
     metric: 'steps' | 'active' | 'azm',
     period: 'day' | 'week' | 'month'
   ) => {
@@ -204,9 +178,9 @@ export default function ActivityPage() {
     } finally {
       setTimeSeriesLoading(false);
     }
-  };
+  }, [anchorDate, fitbitConnected, headers]);
 
-  const loadManualActivity = async () => {
+  const loadManualActivity = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/api/measurements/activity?weekStart=${weekStart}`, { headers });
       const data = await res.json();
@@ -214,7 +188,33 @@ export default function ActivityPage() {
     } catch {
       // ignore
     }
-  };
+  }, [headers, weekStart]);
+
+  useEffect(() => {
+    void checkFitbitStatus();
+    void loadManualActivity();
+  }, [checkFitbitStatus, loadManualActivity]);
+
+  useEffect(() => {
+    void loadTimeSeries(selectedMetric, selectedPeriod);
+  }, [selectedMetric, selectedPeriod, fitbitConnected, anchorDate, loadTimeSeries]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fitbitStatus = params.get('fitbit');
+
+    if (fitbitStatus === 'connected') {
+      setSyncMessage('Fitbit connected successfully!');
+      void checkFitbitStatus();
+      window.history.replaceState({}, '', '/activity');
+    } else if (fitbitStatus === 'already_linked') {
+      setSyncMessage('This Fitbit account is already linked to a different ThriveScore account.');
+      window.history.replaceState({}, '', '/activity');
+    } else if (fitbitStatus === 'error') {
+      setSyncMessage('Fitbit connection failed. Please try again.');
+      window.history.replaceState({}, '', '/activity');
+    }
+  }, [checkFitbitStatus]);
 
   const connectFitbit = async () => {
     try {
