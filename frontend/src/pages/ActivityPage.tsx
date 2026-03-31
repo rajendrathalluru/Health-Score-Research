@@ -4,13 +4,20 @@ import Layout from '../components/layout/Layout';
 import ManualActivityInput from '../components/dashboard/ManualActivityInput';
 import { API_URL } from '../config/api';
 
+function formatLocalDateOnly(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function getCurrentWeekStart(): string {
   const now = new Date();
   const diff = (now.getDay() + 6) % 7;
   const mon = new Date(now);
   mon.setDate(now.getDate() - diff);
   mon.setHours(0, 0, 0, 0);
-  return mon.toISOString().split('T')[0];
+  return formatLocalDateOnly(mon);
 }
 
 interface FitbitSyncData {
@@ -57,9 +64,16 @@ function formatDayLabel(date: string) {
 
 function formatRangeLabel(start: string, end: string, period: 'day' | 'week' | 'month') {
   const startDate = new Date(`${start}T00:00:00`);
-  const endDate = new Date(`${end}T00:00:00`);
+  let endDate = new Date(`${end}T00:00:00`);
   if (period === 'day') {
     return startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  if (period === 'week') {
+    endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+  } else if (period === 'month') {
+    endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
   }
 
   const startLabel = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -76,7 +90,7 @@ function shiftAnchorDate(anchorDate: string, period: 'day' | 'week' | 'month', d
   } else {
     next.setDate(next.getDate() + (7 * direction));
   }
-  return next.toISOString().split('T')[0];
+  return formatLocalDateOnly(next);
 }
 
 function isCurrentOrFutureRange(end: string) {
@@ -93,7 +107,7 @@ export default function ActivityPage() {
   const [timeSeriesOpen, setTimeSeriesOpen] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<'steps' | 'active' | 'azm'>('steps');
   const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month'>('week');
-  const [anchorDate, setAnchorDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [anchorDate, setAnchorDate] = useState(() => formatLocalDateOnly(new Date()));
   const [timeSeries, setTimeSeries] = useState<FitbitTimeSeries | null>(null);
   const [timeSeriesLoading, setTimeSeriesLoading] = useState(false);
   const [timeSeriesMessage, setTimeSeriesMessage] = useState('');

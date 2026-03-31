@@ -17,6 +17,13 @@ function getFrontendUrl() {
   return (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
 }
 
+function formatLocalDateOnly(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function getCurrentWeekDates() {
   const now = new Date();
   const diff = (now.getDay() + 6) % 7;
@@ -29,13 +36,13 @@ function getCurrentWeekDates() {
     const date = new Date(monday);
     date.setDate(monday.getDate() + i);
     if (date > now) break;
-    dates.push(date.toISOString().split('T')[0]);
+    dates.push(formatLocalDateOnly(date));
   }
   return dates;
 }
 
 function formatDateOnly(date) {
-  return date.toISOString().split('T')[0];
+  return formatLocalDateOnly(date);
 }
 
 function parseAnchorDate(value) {
@@ -47,9 +54,8 @@ function parseAnchorDate(value) {
 }
 
 function getDatesForPeriod(period = 'week', anchorDateValue = null) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const anchor = parseAnchorDate(anchorDateValue) ?? new Date(today);
+  const anchor = parseAnchorDate(anchorDateValue) ?? new Date();
+  anchor.setHours(0, 0, 0, 0);
 
   let start = new Date(anchor);
   let end = new Date(anchor);
@@ -65,10 +71,6 @@ function getDatesForPeriod(period = 'week', anchorDateValue = null) {
     start.setDate(anchor.getDate() - diff);
     end = new Date(start);
     end.setDate(start.getDate() + 6);
-  }
-
-  if (end > today) {
-    end = new Date(today);
   }
 
   const dates = [];
@@ -305,7 +307,7 @@ router.get('/callback', async (req, res) => {
 // ─────────────────────────────────────────
 router.post('/sync', authenticate, async (req, res) => {
   const userId = req.user.id;
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatLocalDateOnly(new Date());
   const weekDates = getCurrentWeekDates();
 
   const client = await pool.connect();
