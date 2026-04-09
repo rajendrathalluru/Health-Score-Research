@@ -75,7 +75,7 @@ app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════╗
 ║  ThriveScore Tracker API Server       ║
@@ -84,5 +84,25 @@ app.listen(PORT, () => {
 ╚════════════════════════════════════════╝
   `);
 });
+
+function shutdown(signal) {
+  console.log(`[shutdown] Received ${signal}. Closing server gracefully...`);
+  server.close((err) => {
+    if (err) {
+      console.error('[shutdown] Error while closing server:', err);
+      process.exit(1);
+    }
+    console.log('[shutdown] Server closed successfully.');
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    console.error('[shutdown] Forced shutdown after timeout.');
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 export default app;
