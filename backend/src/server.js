@@ -57,8 +57,15 @@ app.use('/api/weekly-score', weeklyscoreRoutes);
 app.use('/api/profile', profileRoutes);
 
 if (hasFrontendBundle) {
-  app.use(express.static(frontendDistPath));
+  app.use(express.static(frontendDistPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('index.html')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      }
+    },
+  }));
   app.get(/^(?!\/api(?:\/|$)|\/health$).*/, (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
 }
