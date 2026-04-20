@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Diet Scoring Guide</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; margin: 36px; color: #111; line-height: 1.45; }
+    h1, h2, h3 { color: #111; }
+    h1 { margin-bottom: 8px; }
+    h2 { margin-top: 28px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    p.note { color: #555; margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f5f5f5; }
+    code { background: #f6f6f6; padding: 1px 4px; border-radius: 4px; }
+    .formula { background: #fafafa; border: 1px solid #e5e5e5; padding: 10px 12px; border-radius: 8px; margin: 10px 0 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .example { background: #fcfcfc; border-left: 4px solid #222; padding: 10px 14px; margin: 10px 0 18px; }
+    ul { margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Diet Scoring Guide</h1>
+  <p class="note">Current ThriveScore diet scoring logic with examples.</p>
+
+  <p>Each diet category is scored as:</p>
+  <ul>
+    <li><strong>1.0</strong> = best alignment</li>
+    <li><strong>0.5</strong> = partial alignment</li>
+    <li><strong>0.0</strong> = low alignment</li>
+  </ul>
+
+  <h2>1. Plant-Based Foods</h2>
+  <p>This is the average of 3 sub-scores:</p>
+  <div class="formula">plant_based_score = average(fruit_veg, pulses, whole_grains)</div>
+
+  <h3>Fruits and vegetables (q29)</h3>
+  <table>
+    <tr><th>Answer</th><th>Score</th><th>Example</th></tr>
+    <tr><td><code>5_plus_day</code></td><td>1.0</td><td>Eats fruits/vegetables 5+ times per day</td></tr>
+    <tr><td><code>4_day</code></td><td>0.5</td><td>Eats fruits/vegetables 4 times/day</td></tr>
+    <tr><td><code>2_3_day</code></td><td>0.5</td><td>Eats fruits/vegetables 2–3 times/day</td></tr>
+    <tr><td><code>1_day</code></td><td>0.0</td><td>Eats fruits/vegetables once/day</td></tr>
+    <tr><td><code>&lt;1/day</code> or <code>none</code></td><td>0.0</td><td>Rarely or never eats fruits/vegetables</td></tr>
+  </table>
+
+  <h3>Pulses / beans (q30)</h3>
+  <table>
+    <tr><th>Answer</th><th>Score</th><th>Example</th></tr>
+    <tr><td><code>4_plus_week</code></td><td>1.0</td><td>Beans/lentils 4+ times/week</td></tr>
+    <tr><td><code>3_week</code></td><td>1.0</td><td>Beans/lentils 3 times/week</td></tr>
+    <tr><td><code>2_week</code></td><td>0.5</td><td>Beans/lentils 2 times/week</td></tr>
+    <tr><td><code>1_week</code></td><td>0.5</td><td>Beans/lentils once/week</td></tr>
+    <tr><td><code>&lt;1/week</code> or <code>none</code></td><td>0.0</td><td>Rarely or never</td></tr>
+  </table>
+
+  <h3>Whole grains (q31)</h3>
+  <table>
+    <tr><th>Answer</th><th>Score</th><th>Example</th></tr>
+    <tr><td><code>multi_day</code></td><td>1.0</td><td>Whole grains multiple times/day</td></tr>
+    <tr><td><code>daily</code></td><td>0.5</td><td>Whole grains once/day</td></tr>
+    <tr><td><code>&lt;1/day</code></td><td>0.0</td><td>Less than once/day</td></tr>
+  </table>
+
+  <div class="example">
+    <strong>Example:</strong><br>
+    Fruit/veg = 1.0, Pulses = 0.5, Whole grains = 0.5<br>
+    <div class="formula">plant_based_score = (1.0 + 0.5 + 0.5) / 3 = 0.67</div>
+  </div>
+
+  <h2>2. Fast / Processed Foods</h2>
+  <p>Uses <code>q32</code> (fast/processed foods) and <code>q33</code> (sweets/pastries).</p>
+
+  <p>First convert answers to times per week:</p>
+  <table>
+    <tr><th>Answer</th><th>Times/week</th></tr>
+    <tr><td><code>4_plus_week</code></td><td>4</td></tr>
+    <tr><td><code>3_week</code></td><td>3</td></tr>
+    <tr><td><code>2_week</code></td><td>2</td></tr>
+    <tr><td><code>1_week</code></td><td>1</td></tr>
+    <tr><td><code>lt_1_week</code></td><td>0.5</td></tr>
+    <tr><td><code>none</code></td><td>0</td></tr>
+  </table>
+
+  <p>Then add them together:</p>
+  <div class="formula">total = fast_food_times + sweets_times</div>
+
+  <table>
+    <tr><th>Combined total/week</th><th>Score</th><th>Example</th></tr>
+    <tr><td>&le; 1</td><td>1.0</td><td>Fast food once/week, no sweets</td></tr>
+    <tr><td>2 to 3</td><td>0.5</td><td>Fast food twice/week + sweets once/week</td></tr>
+    <tr><td>&gt; 3</td><td>0.0</td><td>Fast food 3/week + sweets 2/week</td></tr>
+  </table>
+
+  <h2>3. Red / Processed Meat</h2>
+  <p>Uses <code>q34</code> (red meat) and <code>q35</code> (processed meat).</p>
+  <table>
+    <tr><th>Condition</th><th>Score</th><th>Example</th></tr>
+    <tr><td>Red meat &le;3/week and processed meat &lt;1/week or none</td><td>1.0</td><td>Red meat 1–2/week, processed meat none</td></tr>
+    <tr><td>Red meat &le;3/week and processed meat 1/week</td><td>0.5</td><td>Red meat 3/week, processed meat 1/week</td></tr>
+    <tr><td>Red meat &gt;3/week or processed meat &ge;2/week</td><td>0.0</td><td>Red meat 4–5/week or processed meat 2/week</td></tr>
+  </table>
+
+  <h2>4. Sugar-Sweetened Drinks (q36)</h2>
+  <table>
+    <tr><th>Answer</th><th>Score</th><th>Example</th></tr>
+    <tr><td><code>none</code></td><td>1.0</td><td>No soda / sugary drinks</td></tr>
+    <tr><td><code>&lt;1/week</code> to <code>6/week</code></td><td>0.5</td><td>Drinks soda 2 times/week</td></tr>
+    <tr><td><code>1_plus_day</code></td><td>0.0</td><td>Drinks sugary drinks daily</td></tr>
+  </table>
+
+  <h2>5. Alcohol (q37)</h2>
+  <p>Scoring depends on sex in the user profile.</p>
+
+  <h3>Female</h3>
+  <table>
+    <tr><th>Answer</th><th>Score</th><th>Example</th></tr>
+    <tr><td><code>none</code></td><td>1.0</td><td>No alcohol</td></tr>
+    <tr><td>up to <code>1/day</code></td><td>0.5</td><td>1 drink/day</td></tr>
+    <tr><td><code>gt_1_day</code></td><td>0.0</td><td>More than 1 drink/day</td></tr>
+  </table>
+
+  <h3>Male</h3>
+  <table>
+    <tr><th>Answer</th><th>Score</th><th>Example</th></tr>
+    <tr><td><code>none</code></td><td>1.0</td><td>No alcohol</td></tr>
+    <tr><td>up to <code>2/day</code></td><td>0.5</td><td>2 drinks/day</td></tr>
+    <tr><td><code>gt_2_day</code></td><td>0.0</td><td>More than 2 drinks/day</td></tr>
+  </table>
+
+  <h2>Full Example</h2>
+  <p>Suppose a user answers:</p>
+  <ul>
+    <li>Fruit/veg = <code>5_plus_day</code> &rarr; 1.0</li>
+    <li>Pulses = <code>1_week</code> &rarr; 0.5</li>
+    <li>Whole grains = <code>daily</code> &rarr; 0.5</li>
+    <li>Fast food = <code>2_week</code>, Sweets = <code>1_week</code> &rarr; total 3 &rarr; 0.5</li>
+    <li>Red meat = <code>1_2_week</code>, Processed meat = <code>none</code> &rarr; 1.0</li>
+    <li>Sugary drinks = <code>1_week</code> &rarr; 0.5</li>
+    <li>Alcohol = male, <code>2/day</code> &rarr; 0.5</li>
+  </ul>
+
+  <table>
+    <tr><th>Component</th><th>Score</th></tr>
+    <tr><td>Plant-based foods</td><td>0.67</td></tr>
+    <tr><td>Fast / processed foods</td><td>0.5</td></tr>
+    <tr><td>Red / processed meat</td><td>1.0</td></tr>
+    <tr><td>Sugar-sweetened drinks</td><td>0.5</td></tr>
+    <tr><td>Alcohol</td><td>0.5</td></tr>
+  </table>
+</body>
+</html>

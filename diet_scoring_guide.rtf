@@ -1,0 +1,121 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Arial;}}
+\fs24
+\b ThriveScore Diet Scoring Guide\b0\par
+\par
+This document explains how diet is currently scored in the app, including the scoring rules and worked examples. Each diet category is scored as:\par
+\par
+- 1.0 = best alignment\par
+- 0.5 = partial alignment\par
+- 0.0 = low alignment\par
+\par
+\b 1. Plant-Based Foods\b0\par
+This score is the average of 3 sub-scores:\par
+\par
+plant_based_score = average(fruit_veg, pulses, whole_grains)\par
+\par
+\b Fruits and vegetables (q29)\b0\par
+- 5_plus_day -> 1.0\par
+- 4_day -> 0.5\par
+- 2_3_day -> 0.5\par
+- 1_day -> 0.0\par
+- <1/day or none -> 0.0\par
+Example: If a user eats fruits and vegetables 5+ times per day, score = 1.0. If they eat 2-3 times per day, score = 0.5.\par
+\par
+\b Pulses / beans (q30)\b0\par
+- 4_plus_week -> 1.0\par
+- 3_week -> 1.0\par
+- 2_week -> 0.5\par
+- 1_week -> 0.5\par
+- <1/week or none -> 0.0\par
+Example: Beans 3 times/week = 1.0. Beans once/week = 0.5.\par
+\par
+\b Whole grains (q31)\b0\par
+- multi_day -> 1.0\par
+- daily -> 0.5\par
+- <1/day -> 0.0\par
+Example: Whole grains multiple times/day = 1.0. Once daily = 0.5.\par
+\par
+\b Plant-based example\b0\par
+Fruit/veg = 1.0, Pulses = 0.5, Whole grains = 0.5\par
+plant_based_score = (1.0 + 0.5 + 0.5) / 3 = 0.67\par
+\par
+\b 2. Fast / Processed Foods\b0\par
+Uses q32 (fast foods) and q33 (sweets/pastries). Each answer is converted to times per week:\par
+\par
+- 4_plus_week -> 4\par
+- 3_week -> 3\par
+- 2_week -> 2\par
+- 1_week -> 1\par
+- lt_1_week -> 0.5\par
+- none -> 0\par
+\par
+Then:\par
+fast_processed_total = fast_food_times + sweets_times\par
+\par
+Scoring:\par
+- total <= 1/week -> 1.0\par
+- total <= 3/week -> 0.5\par
+- total > 3/week -> 0.0\par
+\par
+Example: Fast food 2/week and sweets 1/week gives total = 3, so score = 0.5.\par
+\par
+\b 3. Red / Processed Meat\b0\par
+Uses q34 (red meat) and q35 (processed meat).\par
+\par
+Scoring:\par
+- Red meat <=3/week and processed meat <1/week or none -> 1.0\par
+- Red meat <=3/week and processed meat 1/week -> 0.5\par
+- Red meat >3/week or processed meat >=2/week -> 0.0\par
+\par
+Example: Red meat 1-2/week and processed meat none gives score = 1.0.\par
+\par
+\b 4. Sugar-Sweetened Drinks (q36)\b0\par
+- none -> 1.0\par
+- <1/week to 6/week -> 0.5\par
+- 1_plus_day -> 0.0\par
+\par
+Example: Soda 2 times/week = 0.5. No sugary drinks = 1.0.\par
+\par
+\b 5. Alcohol (q37)\b0\par
+Scoring depends on sex in the user profile.\par
+\par
+\b Female\b0\par
+- none -> 1.0\par
+- up to 1/day -> 0.5\par
+- gt_1_day -> 0.0\par
+\par
+\b Male\b0\par
+- none -> 1.0\par
+- up to 2/day -> 0.5\par
+- gt_2_day -> 0.0\par
+\par
+Example: Male with 2 drinks/day = 0.5. Female with more than 1/day = 0.0.\par
+\par
+\b Full Example\b0\par
+Suppose a user answers:\par
+- Fruit/veg = 5_plus_day -> 1.0\par
+- Pulses = 1_week -> 0.5\par
+- Whole grains = daily -> 0.5\par
+plant_based_score = 0.67\par
+\par
+- Fast food = 2_week\par
+- Sweets = 1_week\par
+Total = 3 -> fast_processed_score = 0.5\par
+\par
+- Red meat = 1_2_week\par
+- Processed meat = none\par
+red_processed_meat_score = 1.0\par
+\par
+- Sugary drinks = 1_week -> 0.5\par
+- Alcohol = male, 2/day -> 0.5\par
+\par
+\b Final diet component scores\b0\par
+- Plant-based foods: 0.67\par
+- Fast / processed foods: 0.5\par
+- Red / processed meat: 1.0\par
+- Sugar-sweetened drinks: 0.5\par
+- Alcohol: 0.5\par
+\par
+Source logic is based on the current app scoring implementation in backend/src/routes/weeklyScore.js.\par
+}
