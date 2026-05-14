@@ -40,7 +40,6 @@ interface FitbitSyncData {
   weightKg:       number | null;
   heightCm:       number | null;
   bmi:            number | null;
-  waistCm:        number | null;
   sources: {
     weight:   string | null;
     activity: string;
@@ -223,7 +222,7 @@ export default function Dashboard() {
     : manualActivityEntries.reduce((sum, entry) => sum + Number(entry.mvpa_minutes || 0), 0);
   const syncedStepCount = fitbitData?.steps ?? 0;
   const questionLabels: Record<string, { title: string; desc: string }> = {
-    weight_score: { title: 'Healthy Weight', desc: 'BMI and waist circumference thresholds' },
+    weight_score: { title: 'Healthy Weight', desc: 'BMI-based healthy weight thresholds' },
     activity_score: { title: 'Physical Activity', desc: 'Total active minutes per week' },
     plant_based_score: { title: 'Plant-Based Foods', desc: 'Average of fruit & vegetables, pulses, and whole grains' },
     fast_processed_score: { title: 'Fast/Processed Foods', desc: 'fast foods and sweets/pastries' },
@@ -250,7 +249,7 @@ export default function Dashboard() {
         desc: questionLabels[key]?.desc ?? '',
       }))
     : [
-        { id: 1, title: 'Healthy Weight', score: p(scoreData?.weight_score), max: 1, desc: 'BMI and waist circumference' },
+        { id: 1, title: 'Healthy Weight', score: p(scoreData?.weight_score), max: 1, desc: 'BMI only' },
         { id: 2, title: 'Physical Activity', score: p(scoreData?.activity_score), max: 1, desc: '150+ active min/week — via Fitbit or manual log' },
         { id: 3, title: 'Plant Foods', score: p(scoreData?.plant_score), max: 1, desc: 'Fruits, vegetables and fiber' },
         { id: 4, title: 'Processed Foods', score: p(scoreData?.upf_score), max: 1, desc: 'Ultra-processed food intake' },
@@ -404,7 +403,7 @@ export default function Dashboard() {
                 {[
                   { href: '/weekly-log', title: 'Weekly Log', meta: 'Questionnaire', icon: <WeeklyLogIcon /> },
                   { href: '/activity', title: 'Activity', meta: fitbitConnected ? 'Fitbit + manual' : 'Manual logging', icon: <ActivityIcon /> },
-                  { href: '/body-metrics', title: 'Body Metrics', meta: 'Weight and waist', icon: <BodyMetricsIcon /> },
+                  { href: '/body-metrics', title: 'Body Metrics', meta: 'Weight tracking', icon: <BodyMetricsIcon /> },
                   { href: '/profile', title: 'Profile', meta: 'Height and account', icon: <ProfileIcon /> },
                 ].map((item) => (
                   <a

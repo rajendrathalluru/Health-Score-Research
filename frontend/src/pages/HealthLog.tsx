@@ -285,7 +285,6 @@ function toModalScore(data: WeeklyScoreResponse): WeeklyScore {
     avgSSB: null,
     avgEth: null,
     latestBMI: null,
-    latestWaist: null,
   };
 }
 

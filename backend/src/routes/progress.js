@@ -90,14 +90,13 @@ router.get('/body-metrics', authenticate, async (req, res) => {
       `SELECT
          dm.date,
          dm.weight_kg,
-         dm.waist_cm,
          dm.bmi,
          u.height_cm
        FROM daily_measurements dm
        LEFT JOIN users u ON u.id = dm.user_id
        WHERE dm.user_id = $1
          AND dm.date BETWEEN $2::date AND $3::date
-         AND (dm.weight_kg IS NOT NULL OR dm.waist_cm IS NOT NULL OR dm.bmi IS NOT NULL)
+         AND (dm.weight_kg IS NOT NULL OR dm.bmi IS NOT NULL)
        ORDER BY dm.date ASC`,
       [userId, range.start, range.end]
     );
@@ -111,7 +110,6 @@ router.get('/body-metrics', authenticate, async (req, res) => {
       return {
         date: row.date,
         weight_kg: row.weight_kg,
-        waist_cm: row.waist_cm,
         bmi,
       };
     });

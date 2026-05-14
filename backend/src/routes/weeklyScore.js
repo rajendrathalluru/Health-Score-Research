@@ -97,28 +97,15 @@ function timesPerWeek(answer) {
   return Object.prototype.hasOwnProperty.call(map, answer) ? map[answer] : null;
 }
 
-function scoreWeightFromMeasures(bmi, waistCm, gender = 'male') {
-  let bmiPart = 0;
-  let waistPart = 0;
-
-  if (bmi !== null && bmi !== undefined && !Number.isNaN(Number(bmi))) {
-    const b = Number(bmi);
-    if (b >= 18.5 && b <= 24.9) bmiPart = 0.5;
-    else if (b >= 25 && b <= 29.9) bmiPart = 0.25;
+function scoreWeightFromMeasures(bmi) {
+  if (bmi === null || bmi === undefined || Number.isNaN(Number(bmi))) {
+    return 0;
   }
 
-  if (waistCm !== null && waistCm !== undefined && !Number.isNaN(Number(waistCm))) {
-    const w = Number(waistCm);
-    if (gender === 'female') {
-      if (w < 80) waistPart = 0.5;
-      else if (w >= 80 && w < 88) waistPart = 0.25;
-    } else {
-      if (w < 94) waistPart = 0.5;
-      else if (w >= 94 && w < 102) waistPart = 0.25;
-    }
-  }
-
-  return +(bmiPart + waistPart).toFixed(2);
+  const b = Number(bmi);
+  if (b >= 18.5 && b <= 24.9) return 1;
+  if (b >= 25 && b <= 29.9) return 0.5;
+  return 0;
 }
 
 function scoreActivityFromMvpa(totalMvpa) {
@@ -148,12 +135,12 @@ async function loadMeasurementForWeek(userId, weekStart) {
   const heightCm = userResult.rows[0]?.height_cm ?? null;
 
   let bodyResult = await pool.query(
-    `SELECT bmi, waist_cm, weight_kg
+    `SELECT bmi, weight_kg
      FROM daily_measurements
      WHERE user_id = $1
        AND date >= $2::date
        AND date < ($2::date + interval '7 days')
-       AND (bmi IS NOT NULL OR waist_cm IS NOT NULL OR weight_kg IS NOT NULL)
+       AND (bmi IS NOT NULL OR weight_kg IS NOT NULL)
      ORDER BY date DESC
      LIMIT 1`,
     [userId, weekStart]
@@ -161,11 +148,11 @@ async function loadMeasurementForWeek(userId, weekStart) {
 
   if (!bodyResult.rows.length) {
     bodyResult = await pool.query(
-      `SELECT bmi, waist_cm, weight_kg
+      `SELECT bmi, weight_kg
        FROM daily_measurements
        WHERE user_id = $1
          AND date < $2::date
-         AND (bmi IS NOT NULL OR waist_cm IS NOT NULL OR weight_kg IS NOT NULL)
+         AND (bmi IS NOT NULL OR weight_kg IS NOT NULL)
        ORDER BY date DESC
        LIMIT 1`,
       [userId, weekStart]
@@ -184,7 +171,6 @@ async function loadMeasurementForWeek(userId, weekStart) {
   return {
     mvpa_minutes: activityResult.rows[0]?.total_mvpa ?? 0,
     bmi: derivedBmi,
-    waist_cm: bodyResult.rows[0]?.waist_cm ?? null,
     weight_kg: weightKg,
     height_cm: heightCm,
   };
@@ -235,7 +221,7 @@ function scoreAnswers(answers, gender = 'male', measurement = {}) {
     }
   }
 
-  const weightScore = scoreWeightFromMeasures(measurement.bmi, measurement.waist_cm, gender);
+  const weightScore = scoreWeightFromMeasures(measurement.bmi);
   const activityScore = scoreActivityFromMvpa(measurement.mvpa_minutes);
 
   const components = {

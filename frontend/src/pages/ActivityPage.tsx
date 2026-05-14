@@ -27,7 +27,6 @@ interface FitbitSyncData {
   weightKg: number | null;
   heightCm: number | null;
   bmi: number | null;
-  waistCm: number | null;
   sources: {
     weight: string | null;
     activity: string;

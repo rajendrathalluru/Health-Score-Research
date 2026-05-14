@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import Layout from '../components/layout/Layout';
 import { API_BASE } from '../config/api';
-import { cmToInches, kgToLb } from '../utils/units';
+import { kgToLb } from '../utils/units';
 
 interface ScorePoint {
   isoDate: string;
@@ -30,7 +30,6 @@ interface BodyPoint {
   isoDate: string;
   date: string;
   weight: number | null;
-  waist: number | null;
   bmi: number | null;
 }
 
@@ -51,7 +50,6 @@ interface RawScoreItem {
 interface RawBodyItem {
   date?: unknown;
   weight_kg?: unknown;
-  waist_cm?: unknown;
   bmi?: unknown;
 }
 
@@ -181,7 +179,6 @@ export default function ProgressPage() {
           isoDate: String(item.date ?? ''),
           date: formatDateLabel(item.date),
           weight: item.weight_kg !== null && item.weight_kg !== undefined ? kgToLb(Number(item.weight_kg)) : null,
-          waist: item.waist_cm !== null && item.waist_cm !== undefined ? cmToInches(Number(item.waist_cm)) : null,
           bmi: item.bmi !== null && item.bmi !== undefined ? Number(item.bmi) : null,
         }))
       );
@@ -209,7 +206,7 @@ export default function ProgressPage() {
   const summary = useMemo(() => {
     const latestScore = scoreHistory[scoreHistory.length - 1] ?? null;
     const previousScore = scoreHistory.length > 1 ? scoreHistory[scoreHistory.length - 2] : null;
-    const latestBody = [...bodyHistory].reverse().find((item) => item.weight !== null || item.waist !== null) ?? null;
+    const latestBody = [...bodyHistory].reverse().find((item) => item.weight !== null) ?? null;
     const activityTotal = activityHistory.reduce((sum, item) => sum + item.mvpa, 0);
     const avgActivity = activityHistory.length ? Math.round(activityTotal / activityHistory.length) : 0;
     const totalScore = scoreHistory.reduce((sum, item) => sum + item.score, 0);
@@ -328,9 +325,9 @@ export default function ProgressPage() {
                       : '—'}
                     </div>
                   <div className="mt-1 text-xs text-stone-500">
-                    {summary.latestBody?.waist !== null && summary.latestBody?.waist !== undefined
-                      ? `Waist ${summary.latestBody.waist.toFixed(1)} in`
-                      : 'No waist saved yet'}
+                    {summary.latestBody?.bmi !== null && summary.latestBody?.bmi !== undefined
+                      ? `BMI ${summary.latestBody.bmi.toFixed(1)}`
+                      : 'BMI updates when height and weight are available'}
                   </div>
                 </div>
               </div>
@@ -429,8 +426,8 @@ export default function ProgressPage() {
                   <div className="rounded-[24px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
                     <div className="mb-4 flex flex-col gap-1">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Body metrics</p>
-                      <h2 className="text-lg font-semibold tracking-tight text-stone-950">Weight and waist trend</h2>
-                      <p className="text-sm text-stone-500">Latest saved body metrics in this date range. BMI is shown in the tooltip.</p>
+                      <h2 className="text-lg font-semibold tracking-tight text-stone-950">Weight trend</h2>
+                      <p className="text-sm text-stone-500">Latest saved weight entries in this date range. BMI is shown in the tooltip.</p>
                     </div>
                     <div className="h-[280px] sm:h-[320px]">
                       <ResponsiveContainer width="100%" height="100%">
@@ -438,12 +435,10 @@ export default function ProgressPage() {
                           <CartesianGrid stroke="#e7e5e4" vertical={false} />
                           <XAxis dataKey="date" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
                           <YAxis yAxisId="left" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
-                          <YAxis yAxisId="right" orientation="right" tick={{ fill: '#78716c', fontSize: 12 }} tickLine={false} axisLine={false} />
                           <Tooltip
                             formatter={(value, name) => {
                               const numeric = Number(value ?? 0);
                               if (name === 'Weight') return [`${numeric.toFixed(1)} lb`, name];
-                              if (name === 'Waist') return [`${numeric.toFixed(1)} in`, name];
                               return [numeric, name];
                             }}
                             labelFormatter={(_, payload) => {
@@ -455,7 +450,6 @@ export default function ProgressPage() {
                           />
                           <Legend />
                           <Line yAxisId="left" type="monotone" dataKey="weight" stroke="#0f766e" strokeWidth={2.5} dot={{ r: 3 }} name="Weight" connectNulls />
-                          <Line yAxisId="right" type="monotone" dataKey="waist" stroke="#b45309" strokeWidth={2.5} dot={{ r: 3 }} name="Waist" connectNulls />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>

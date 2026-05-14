@@ -114,7 +114,7 @@ async function getCurrentWeekSummary(client, userId) {
       [userId, weekStart]
     ),
     client.query(
-      `SELECT date::text AS date, weight_kg, bmi, waist_cm
+      `SELECT date::text AS date, weight_kg, bmi
        FROM daily_measurements
        WHERE user_id = $1
          AND date >= $2::date
@@ -146,7 +146,6 @@ async function getCurrentWeekSummary(client, userId) {
     weightKg: latestMeasurement?.weight_kg ?? null,
     heightCm: user?.height_cm ?? null,
     bmi: latestMeasurement?.bmi ?? null,
-    waistCm: latestMeasurement?.waist_cm ?? null,
     sources: {
       weight: latestMeasurement?.weight_kg !== null && latestMeasurement?.weight_kg !== undefined ? 'stored_metric' : null,
       activity: 'fitbit_or_manual_from_current_week',
@@ -375,7 +374,7 @@ router.post('/sync', authenticate, async (req, res) => {
 
     // ── Current week activity ─────────────────────────────
     const manualWeekResult = await client.query(
-      `SELECT date::text AS date, mvpa_minutes, steps, weight_kg, bmi, waist_cm
+      `SELECT date::text AS date, mvpa_minutes, steps, weight_kg, bmi
        FROM daily_measurements
        WHERE user_id = $1
          AND date >= $2::date
@@ -405,13 +404,12 @@ router.post('/sync', authenticate, async (req, res) => {
 
       await client.query(
         `INSERT INTO daily_measurements
-         (user_id, date, weight_kg, bmi, waist_cm, mvpa_minutes, steps)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         (user_id, date, weight_kg, bmi, mvpa_minutes, steps)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (user_id, date)
          DO UPDATE SET
            weight_kg    = COALESCE(daily_measurements.weight_kg, EXCLUDED.weight_kg),
            bmi          = COALESCE(daily_measurements.bmi, EXCLUDED.bmi),
-           waist_cm     = COALESCE(daily_measurements.waist_cm, EXCLUDED.waist_cm),
            mvpa_minutes = COALESCE(EXCLUDED.mvpa_minutes, daily_measurements.mvpa_minutes),
            steps        = COALESCE(EXCLUDED.steps, daily_measurements.steps)`,
         [
@@ -419,7 +417,6 @@ router.post('/sync', authenticate, async (req, res) => {
           day.date,
           manual?.weight_kg ?? null,
           manual?.bmi ?? null,
-          manual?.waist_cm ?? null,
           finalActiveMinutes,
           finalSteps,
         ]
@@ -459,19 +456,17 @@ router.post('/sync', authenticate, async (req, res) => {
     const finalWeightKg   = weightKg ?? todayMeasurement?.weight_kg ?? null;
     const finalHeightCm   = heightCm ?? null;
     const finalBmi        = bmi ?? (todayMeasurement?.bmi ? parseFloat(todayMeasurement.bmi) : null);
-    const finalWaist      = todayMeasurement?.waist_cm ?? null;
 
     // Persist today's weight/BMI into daily_measurements without overwriting
     // the already-synced weekly activity values.
     await client.query(
       `INSERT INTO daily_measurements
-       (user_id, date, weight_kg, bmi, waist_cm, mvpa_minutes, steps)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (user_id, date, weight_kg, bmi, mvpa_minutes, steps)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (user_id, date)
        DO UPDATE SET
          weight_kg    = COALESCE(EXCLUDED.weight_kg, daily_measurements.weight_kg),
          bmi          = COALESCE(EXCLUDED.bmi, daily_measurements.bmi),
-         waist_cm     = COALESCE(EXCLUDED.waist_cm, daily_measurements.waist_cm),
          mvpa_minutes = COALESCE(EXCLUDED.mvpa_minutes, daily_measurements.mvpa_minutes),
          steps        = COALESCE(EXCLUDED.steps, daily_measurements.steps)`,
       [
@@ -479,7 +474,6 @@ router.post('/sync', authenticate, async (req, res) => {
         today,
         finalWeightKg,
         finalBmi,
-        finalWaist,
         weeklyActivityData.find((day) => day.date === today)
           ? (
               Number(weeklyActivityData.find((day) => day.date === today)?.summary?.fairlyActiveMinutes ?? 0) +
@@ -507,7 +501,7 @@ router.post('/sync', authenticate, async (req, res) => {
       steps: weeklySteps,
       activeMinutes: weeklyActiveMinutes,
       weightKg: finalWeightKg, heightCm: finalHeightCm,
-      bmi: finalBmi, waist: finalWaist,
+      bmi: finalBmi,
       weightSource
     });
 
@@ -523,7 +517,6 @@ router.post('/sync', authenticate, async (req, res) => {
         weightKg:        finalWeightKg,
         heightCm:        finalHeightCm,
         bmi:             finalBmi,
-        waistCm:         finalWaist,
         // Source info for transparency
         sources: {
           weight:   weightSource,

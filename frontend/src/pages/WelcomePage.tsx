@@ -126,7 +126,7 @@ export default function WelcomePage() {
                     <div className="mt-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 text-stone-800">
                       <ScaleIcon />
                     </div>
-                    <div className="mt-3 text-sm font-medium text-stone-900">Weight and waist</div>
+                    <div className="mt-3 text-sm font-medium text-stone-900">Weight tracking</div>
                   </div>
                   <div className="col-span-2 rounded-[1.5rem] bg-[#e6f6ef] p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -162,7 +162,7 @@ export default function WelcomePage() {
                   icon: <ScaleIcon />,
                   color: 'bg-[#ffe6dc]',
                   title: 'Watch healthy-weight signals',
-                  text: 'Weight and waist trends',
+                  text: 'Weight trends and BMI',
                 },
                 {
                   icon: <LeafIcon />,

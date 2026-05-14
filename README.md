@@ -21,7 +21,6 @@ The current app flow is:
    - or manual daily activity logging
 5. Body metrics logging
    - weight
-   - waist circumference
    - height stored in profile
    - frontend uses US-facing units for body inputs and display
 6. Dashboard and progress review
@@ -34,7 +33,6 @@ It includes:
 
 1. Healthy weight
    - BMI
-   - waist circumference
 2. Physical activity
 3. Plant-based foods
 4. Fast / processed foods
@@ -52,7 +50,7 @@ Diet scoring is questionnaire-based, not food-entry based.
 - `/dashboard` - weekly overview
 - `/weekly-log` - weekly questionnaire
 - `/activity` - Fitbit + manual activity logging
-- `/body-metrics` - weight and waist tracking
+- `/body-metrics` - weight tracking
 - `/progress` - score, activity, and body metric trends
 - `/profile` - personal and survivorship profile details
 
@@ -220,15 +218,13 @@ in Supabase SQL Editor if that table does not already exist.
 ### Measurements
 
 - Height is profile data.
-- Weight and waist are tracked separately as body metrics.
+- Weight is tracked as a body metric and combined with profile height to calculate BMI.
 - Frontend body measurements use:
   - `lb` for weight
   - `ft/in` for height
-  - `in` for waist circumference
 - Backend and database still store metric values:
   - `kg` for weight
   - `cm` for height
-  - `cm` for waist
 - Weekly score uses current-week measurements first and can derive BMI from profile height + saved weight.
 
 ## Build

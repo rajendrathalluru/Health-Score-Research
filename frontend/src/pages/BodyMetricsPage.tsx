@@ -7,7 +7,6 @@ import { formatFeetInches, kgToLb } from '../utils/units';
 
 interface BodyMeasurements {
   weightKg: number | null;
-  waistCm: number | null;
 }
 
 function formatLocalDateOnly(date: Date) {
@@ -18,7 +17,7 @@ function formatLocalDateOnly(date: Date) {
 }
 
 export default function BodyMetricsPage() {
-  const [bodyMeasurements, setBodyMeasurements] = useState<BodyMeasurements>({ weightKg: null, waistCm: null });
+  const [bodyMeasurements, setBodyMeasurements] = useState<BodyMeasurements>({ weightKg: null });
   const [fitbitConnected, setFitbitConnected] = useState(false);
   const [fitbitWeightKg, setFitbitWeightKg] = useState<number | null>(null);
   const [fitbitSyncing, setFitbitSyncing] = useState(false);
@@ -39,7 +38,6 @@ export default function BodyMetricsPage() {
       if (data.success && data.data) {
         setBodyMeasurements({
           weightKg: data.data.weight_kg ?? null,
-          waistCm: data.data.waist_cm ?? null,
         });
       }
     } catch {
@@ -72,21 +70,20 @@ export default function BodyMetricsPage() {
     return () => window.clearTimeout(timer);
   }, [loadBodyMeasurements, loadFitbitStatus]);
 
-  const saveBodyMeasurements = async ({ weightKg, waistCm }: BodyMeasurements) => {
+  const saveBodyMeasurements = async ({ weightKg }: BodyMeasurements) => {
     const res = await fetch(`${API_URL}/api/measurements/log`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
         date: today,
         weightKg,
-        waistCm,
         mvpaMinutes: null,
         steps: null,
       }),
     });
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.message || 'Failed to save body measurements');
-    setBodyMeasurements({ weightKg, waistCm });
+    setBodyMeasurements({ weightKg });
   };
 
   const syncFitbitWeight = async () => {
@@ -125,13 +122,12 @@ export default function BodyMetricsPage() {
         <div className="mb-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Body Metrics</p>
           <h1 className="mt-1.5 text-[1.75rem] font-semibold tracking-tight text-stone-950">Body Metrics</h1>
-          <p className="mt-1 text-xs sm:text-sm text-stone-500">Weekly weight and waist. Height stays in profile.</p>
+          <p className="mt-1 text-xs sm:text-sm text-stone-500">Weekly weight. Height stays in profile.</p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
           <BodyMeasurementsCard
             initialWeightKg={bodyMeasurements.weightKg}
-            initialWaistCm={bodyMeasurements.waistCm}
             onSave={saveBodyMeasurements}
           />
 
@@ -139,7 +135,7 @@ export default function BodyMetricsPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Reference</p>
             <h2 className="mt-1 text-lg font-semibold tracking-tight text-stone-950">Healthy weight inputs</h2>
             <p className="mt-1.5 text-xs leading-5 sm:text-sm sm:leading-6 text-stone-500">
-              Weight combines with profile height to calculate BMI. Waist circumference is scored separately using sex-specific thresholds.
+              Body mass index (BMI) is calculated automatically from your saved weight and profile height.
             </p>
 
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -153,7 +149,7 @@ export default function BodyMetricsPage() {
               <div className="rounded-[18px] bg-stone-50 p-3">
                 <div className="text-sm font-semibold text-stone-900">This week</div>
                 <div className="mt-1.5 text-xl font-semibold tracking-tight text-stone-950">
-                  {bodyMeasurements.weightKg !== null || bodyMeasurements.waistCm !== null ? 'Saved' : 'Pending'}
+                  {bodyMeasurements.weightKg !== null ? 'Saved' : 'Pending'}
                 </div>
                 <div className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-400">Body metrics status</div>
               </div>
@@ -209,7 +205,7 @@ export default function BodyMetricsPage() {
               <div className="rounded-[18px] border border-stone-200 bg-stone-50 p-3">
                 <div className="text-sm font-semibold text-stone-900">Scoring rule</div>
                 <div className="mt-1 text-xs leading-5 text-stone-500">
-                  Healthy weight combines BMI and waist circumference. Save this week&apos;s values so the dashboard uses the current week first.
+                  Healthy weight is now scored from BMI only: 18.5–24.9 = 1, 25–29.9 = 0.5, and &lt;18.5 or ≥30 = 0.
                 </div>
               </div>
               <Link

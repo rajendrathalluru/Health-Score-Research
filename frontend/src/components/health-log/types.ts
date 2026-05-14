@@ -11,7 +11,6 @@ export interface DayEntry {
   alcoholMl: string;
   alcoholAbv: string;
   bmi: string;
-  waistCm: string;
   notes: string;
 }
 
@@ -29,5 +28,4 @@ export interface WeeklyScore {
   avgSSB: number | null;
   avgEth: number | null;
   latestBMI: number | null;
-  latestWaist: number | null;
 }
