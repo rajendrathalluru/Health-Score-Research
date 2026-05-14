@@ -7,6 +7,7 @@ interface Props {
 }
 
 export default function ScoreModal({ score, onClose }: Props) {
+  const totalQuestions = 9;
   const labels: Record<string, string> = {
     weight_score: 'Healthy Weight',
     activity_score: 'Physical Activity',
@@ -74,9 +75,9 @@ export default function ScoreModal({ score, onClose }: Props) {
         <div className="px-6 pb-6 space-y-3">
           <div className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
             <span className="text-sm text-gray-600">Questions answered</span>
-            <span className="text-sm font-bold text-gray-900">{score.daysLogged} / {Object.keys(score.components).length}</span>
+            <span className="text-sm font-bold text-gray-900">{score.daysLogged} / {totalQuestions}</span>
           </div>
-          {score.daysLogged < Object.keys(score.components).length && (
+          {score.daysLogged < totalQuestions && (
             <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
               Score is based on {score.daysLogged} answered questions.
             </p>
