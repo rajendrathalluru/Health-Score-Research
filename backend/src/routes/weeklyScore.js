@@ -188,7 +188,7 @@ function scoreAnswers(answers, gender = 'male', measurement = {}) {
   if (fast !== null && sweets !== null) {
     const totalTimes = fast + sweets;
     if (totalTimes <= 1) fastProcessedScore = 1;
-    else if (totalTimes <= 3) fastProcessedScore = 0.5;
+    else if (totalTimes < 4) fastProcessedScore = 0.5;
     else fastProcessedScore = 0;
   }
 
