@@ -4,7 +4,7 @@ ThriveScore Tracker is a survivorship-focused web application for cancer survivo
 
 The app combines:
 - weekly questionnaire-based scoring
-- Fitbit or manual activity tracking
+- Google Health (Fitbit & Wear OS) or manual activity tracking
 - body metrics tracking
 - progress history
 - profile-based survivorship context
@@ -17,7 +17,7 @@ The current app flow is:
 2. Account creation or login
 3. Weekly questionnaire completion
 4. Activity tracking
-   - Fitbit sync
+   - Google Health sync (Fitbit, Pixel Watch, Wear OS)
    - or manual daily activity logging
 5. Body metrics logging
    - weight
@@ -49,7 +49,7 @@ Diet scoring is questionnaire-based, not food-entry based.
 - `/register` - email/password signup + Google OAuth
 - `/dashboard` - weekly overview
 - `/weekly-log` - weekly questionnaire
-- `/activity` - Fitbit + manual activity logging
+- `/activity` - Google Health + manual activity logging
 - `/body-metrics` - weight tracking
 - `/progress` - score, activity, and body metric trends
 - `/profile` - personal and survivorship profile details
@@ -71,7 +71,7 @@ Diet scoring is questionnaire-based, not food-entry based.
 - PostgreSQL / Supabase Postgres
 - JWT auth
 - Google OAuth
-- Fitbit OAuth
+- Google Health API (`health.googleapis.com/v4`) OAuth
 
 ## Repo Structure
 
@@ -122,9 +122,9 @@ Important backend envs include:
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_REDIRECT_URI`
-- `FITBIT_CLIENT_ID`
-- `FITBIT_CLIENT_SECRET`
-- `FITBIT_REDIRECT_URI`
+- `GOOGLE_HEALTH_CLIENT_ID` (optional — falls back to `GOOGLE_CLIENT_ID`)
+- `GOOGLE_HEALTH_CLIENT_SECRET` (optional — falls back to `GOOGLE_CLIENT_SECRET`)
+- `GOOGLE_HEALTH_REDIRECT_URI`
 
 Important frontend envs include:
 
@@ -146,15 +146,16 @@ The current app relies on these main tables:
 - `users`
 - `daily_measurements`
 - `weekly_questionnaire_scores`
-- `fitbit_tokens`
+- `google_health_tokens`
 
 ### Required SQL
 
 Run SQL from:
 
-- [`backend/sql/weekly_questionnaire_scores.sql`](/Users/rajendrathalluru/Documents/healthscore-tracker/backend/sql/weekly_questionnaire_scores.sql)
+- [`backend/sql/weekly_questionnaire_scores.sql`](backend/sql/weekly_questionnaire_scores.sql)
+- [`backend/sql/google_health_tokens.sql`](backend/sql/google_health_tokens.sql)
 
-in Supabase SQL Editor if that table does not already exist.
+in Supabase SQL Editor if those tables do not already exist.
 
 ## API Summary
 
@@ -184,13 +185,14 @@ in Supabase SQL Editor if that table does not already exist.
 - `GET /api/measurements/activity?weekStart=YYYY-MM-DD`
 - `GET /api/measurements/:date`
 
-### Fitbit
+### Google Health
 
-- `GET /api/fitbit/auth-url`
-- `GET /api/fitbit/callback`
-- `GET /api/fitbit/status`
-- `POST /api/fitbit/sync`
-- `DELETE /api/fitbit/disconnect`
+- `GET /api/google-health/auth-url`
+- `GET /api/google-health/callback`
+- `GET /api/google-health/status`
+- `POST /api/google-health/sync`
+- `GET /api/google-health/timeseries`
+- `DELETE /api/google-health/disconnect`
 
 ### Progress
 
@@ -209,11 +211,12 @@ in Supabase SQL Editor if that table does not already exist.
 
 - Google OAuth signs the user in immediately after callback.
 
-### Fitbit
+### Google Health
 
-- Fitbit is linked to the authenticated app user.
-- The app now prevents the same Fitbit account from being silently reassigned across different ThriveScore users.
-- Fitbit sync stores current-week activity per day into `daily_measurements`.
+- Google Health is linked to the authenticated app user via Google OAuth 2.0 (`health.googleapis.com/v4`).
+- The app prevents the same Google Health account from being silently reassigned across different ThriveScore users.
+- Supports partial consent (activity vs. body measurements scopes) and revokes tokens on disconnect.
+- Google Health sync stores current-week activity (steps and moderate/vigorous active minutes) per day into `daily_measurements`, plus latest weight/height when granted.
 
 ### Measurements
 
@@ -283,9 +286,9 @@ GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 GOOGLE_REDIRECT_URI=https://your-app-domain.com/api/auth/google/callback
 
-FITBIT_CLIENT_ID=...
-FITBIT_CLIENT_SECRET=...
-FITBIT_REDIRECT_URI=https://your-app-domain.com/api/fitbit/callback
+GOOGLE_HEALTH_CLIENT_ID=... # optional, falls back to GOOGLE_CLIENT_ID
+GOOGLE_HEALTH_CLIENT_SECRET=... # optional, falls back to GOOGLE_CLIENT_SECRET
+GOOGLE_HEALTH_REDIRECT_URI=https://your-app-domain.com/api/google-health/callback
 
 USDA_API_KEY=...
 ```
@@ -325,7 +328,7 @@ When running behind the frontend container on `http://localhost:8080`, use backe
 ```bash
 FRONTEND_URL=http://localhost:8080
 GOOGLE_REDIRECT_URI=http://localhost:8080/api/auth/google/callback
-FITBIT_REDIRECT_URI=http://localhost:8080/api/fitbit/callback
+GOOGLE_HEALTH_REDIRECT_URI=http://localhost:8080/api/google-health/callback
 ```
 
 That keeps OAuth callbacks on the same public origin and lets Nginx proxy them to the backend container.
@@ -335,7 +338,7 @@ That keeps OAuth callbacks on the same public origin and lets Nginx proxy them t
 - Set `FRONTEND_URL` in backend env to your deployed frontend URL
 - For the Dockerized frontend, the default is relative `/api` proxying, so `VITE_API_URL` can stay empty
 - Update Google OAuth redirect URIs for deployed domains
-- Update Fitbit OAuth redirect URIs for deployed domains
+- Update Google Health OAuth redirect URIs for deployed domains
 - Do not commit real `.env` files
 
 ## Current Cleanup Notes

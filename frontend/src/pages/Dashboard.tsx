@@ -33,7 +33,7 @@ interface WeeklyScoreRow {
   calculated_at:      string | null;
 }
 
-interface FitbitSyncData {
+interface GoogleHealthSyncData {
   steps:          number;
   activeMinutes:  number;
   caloriesBurned: number;
@@ -95,8 +95,8 @@ export default function Dashboard() {
   const [loading, setLoading]                 = useState(true);
   const [refreshing, setRefreshing]           = useState(false);
   const [error, setError]                     = useState<string | null>(null);
-  const [fitbitConnected, setFitbitConnected] = useState(false);
-  const [fitbitData, setFitbitData]           = useState<FitbitSyncData | null>(null);
+  const [googleHealthConnected, setGoogleHealthConnected] = useState(false);
+  const [googleHealthData, setGoogleHealthData]           = useState<GoogleHealthSyncData | null>(null);
   const [manualActivityEntries, setManualActivityEntries] = useState<ManualActivityEntry[]>([]);
 
   const token     = localStorage.getItem('token');
@@ -144,22 +144,22 @@ export default function Dashboard() {
     }
   };
 
-  // ── Fitbit ────────────────────────────────────────────────────────────────
-  const checkFitbitStatus = useCallback(async () => {
+  // ── Google Health ─────────────────────────────────────────────────────────
+  const checkGoogleHealthStatus = useCallback(async () => {
     try {
-      const res  = await fetch(`${API_URL}/api/fitbit/status`, { headers });
+      const res  = await fetch(`${API_URL}/api/google-health/status`, { headers });
       const data = await res.json();
       if (data.success && data.connected) {
-        setFitbitConnected(true);
-        setFitbitData(data.data ?? null);
+        setGoogleHealthConnected(true);
+        setGoogleHealthData(data.data ?? null);
       } else {
-        setFitbitConnected(false);
-        setFitbitData(null);
+        setGoogleHealthConnected(false);
+        setGoogleHealthData(null);
       }
     } catch (err) {
-      console.error('Failed to check Fitbit status:', err);
-      setFitbitConnected(false);
-      setFitbitData(null);
+      console.error('Failed to check Google Health status:', err);
+      setGoogleHealthConnected(false);
+      setGoogleHealthData(null);
     }
   }, [headers]);
 
@@ -176,25 +176,25 @@ export default function Dashboard() {
     }
   }, [headers, weekStart]);
 
-  // ── On mount: load score + check Fitbit status ─────────────────────────────
+  // ── On mount: load score + check Google Health status ─────────────────────
   useEffect(() => {
     void loadWeeklyScore();
-    void checkFitbitStatus();
+    void checkGoogleHealthStatus();
     void loadManualActivity();
-  }, [loadWeeklyScore, checkFitbitStatus, loadManualActivity]);
+  }, [loadWeeklyScore, checkGoogleHealthStatus, loadManualActivity]);
 
-  // ── Handle Fitbit OAuth redirect params ───────────────────────────────────
+  // ── Handle Google Health OAuth redirect params ────────────────────────────
   useEffect(() => {
-    const params     = new URLSearchParams(window.location.search);
-    const fitbitStatus = params.get('fitbit');
+    const params = new URLSearchParams(window.location.search);
+    const healthStatus = params.get('google_health');
 
-    if (fitbitStatus === 'connected') {
-      void checkFitbitStatus();
+    if (healthStatus === 'connected' || healthStatus === 'partial') {
+      void checkGoogleHealthStatus();
       window.history.replaceState({}, '', '/dashboard');
-    } else if (fitbitStatus === 'error') {
+    } else if (healthStatus === 'error') {
       window.history.replaceState({}, '', '/dashboard');
     }
-  }, [checkFitbitStatus]);
+  }, [checkGoogleHealthStatus]);
 
   if (loading) {
     return (
@@ -217,10 +217,10 @@ export default function Dashboard() {
   })}`;
   const answeredCount = scoreData?.days_answered ?? 0;
   const questionnaireProgress = `${answeredCount}/9`;
-  const activityThisWeek = fitbitConnected && fitbitData
-    ? fitbitData.activeMinutes
+  const activityThisWeek = googleHealthConnected && googleHealthData
+    ? googleHealthData.activeMinutes
     : manualActivityEntries.reduce((sum, entry) => sum + Number(entry.mvpa_minutes || 0), 0);
-  const syncedStepCount = fitbitData?.steps ?? 0;
+  const syncedStepCount = googleHealthData?.steps ?? 0;
   const questionLabels: Record<string, { title: string; desc: string }> = {
     weight_score: { title: 'Healthy Weight', desc: 'BMI-based healthy weight thresholds' },
     activity_score: { title: 'Physical Activity', desc: 'Total active minutes per week' },
@@ -250,7 +250,7 @@ export default function Dashboard() {
       }))
     : [
         { id: 1, title: 'Healthy Weight', score: p(scoreData?.weight_score), max: 1, desc: 'BMI only' },
-        { id: 2, title: 'Physical Activity', score: p(scoreData?.activity_score), max: 1, desc: '150+ active min/week — via Fitbit or manual log' },
+        { id: 2, title: 'Physical Activity', score: p(scoreData?.activity_score), max: 1, desc: '150+ active min/week — via Google Health or manual log' },
         { id: 3, title: 'Plant Foods', score: p(scoreData?.plant_score), max: 1, desc: 'Fruits, vegetables and fiber' },
         { id: 4, title: 'Processed Foods', score: p(scoreData?.upf_score), max: 1, desc: 'Ultra-processed food intake' },
         { id: 5, title: 'Red and Processed Meat', score: p(scoreData?.meat_score), max: 1, desc: 'Weekly meat consumption' },
@@ -337,11 +337,11 @@ export default function Dashboard() {
                 changeType={activityThisWeek >= 150 ? 'positive' : activityThisWeek >= 75 ? 'neutral' : 'negative'}
               />
               <StatCard
-                label="Fitbit Steps"
-                value={fitbitConnected && syncedStepCount ? syncedStepCount.toLocaleString() : 'Not synced'}
-                subtitle={fitbitConnected ? 'Current week total from Fitbit sync' : 'Connect Fitbit for automatic import'}
-                change={fitbitConnected ? 'Live source' : 'Manual mode'}
-                changeType={fitbitConnected ? 'positive' : 'neutral'}
+                label="Google Health Steps"
+                value={googleHealthConnected && syncedStepCount ? syncedStepCount.toLocaleString() : 'Not synced'}
+                subtitle={googleHealthConnected ? 'Current week total from Google Health sync' : 'Connect Google Health for automatic import'}
+                change={googleHealthConnected ? 'Live source' : 'Manual mode'}
+                changeType={googleHealthConnected ? 'positive' : 'neutral'}
               />
             </div>
           </div>
@@ -402,7 +402,7 @@ export default function Dashboard() {
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {[
                   { href: '/weekly-log', title: 'Weekly Log', meta: 'Questionnaire', icon: <WeeklyLogIcon /> },
-                  { href: '/activity', title: 'Activity', meta: fitbitConnected ? 'Fitbit + manual' : 'Manual logging', icon: <ActivityIcon /> },
+                  { href: '/activity', title: 'Activity', meta: googleHealthConnected ? 'Google Health + manual' : 'Manual logging', icon: <ActivityIcon /> },
                   { href: '/body-metrics', title: 'Body Metrics', meta: 'Weight tracking', icon: <BodyMetricsIcon /> },
                   { href: '/profile', title: 'Profile', meta: 'Height and account', icon: <ProfileIcon /> },
                 ].map((item) => (

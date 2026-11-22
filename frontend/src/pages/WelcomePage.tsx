@@ -156,7 +156,7 @@ export default function WelcomePage() {
                   icon: <ActivityIcon />,
                   color: 'bg-[#fff4d6]',
                   title: 'Move each week',
-                  text: 'Fitbit or manual logging',
+                  text: 'Google Health or manual logging',
                 },
                 {
                   icon: <ScaleIcon />,

@@ -20,13 +20,14 @@ function getCurrentWeekStart(): string {
   return formatLocalDateOnly(mon);
 }
 
-interface FitbitSyncData {
+interface GoogleHealthSyncData {
   steps: number;
   activeMinutes: number;
   caloriesBurned: number;
   weightKg: number | null;
   heightCm: number | null;
   bmi: number | null;
+  warnings?: string[];
   sources: {
     weight: string | null;
     activity: string;
@@ -47,7 +48,7 @@ interface TimeSeriesPoint {
   peak?: number;
 }
 
-interface FitbitTimeSeries {
+interface GoogleHealthTimeSeries {
   metric: 'steps' | 'active' | 'azm';
   period: 'day' | 'week' | 'month';
   start: string;
@@ -100,14 +101,15 @@ function isCurrentOrFutureRange(end: string) {
 }
 
 export default function ActivityPage() {
-  const [fitbitConnected, setFitbitConnected] = useState(false);
-  const [fitbitLoading, setFitbitLoading] = useState(true);
-  const [fitbitData, setFitbitData] = useState<FitbitSyncData | null>(null);
+  const [googleHealthConnected, setGoogleHealthConnected] = useState(false);
+  const [googleHealthLoading, setGoogleHealthLoading] = useState(true);
+  const [googleHealthEmail, setGoogleHealthEmail] = useState<string | null>(null);
+  const [googleHealthData, setGoogleHealthData] = useState<GoogleHealthSyncData | null>(null);
   const [timeSeriesOpen, setTimeSeriesOpen] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<'steps' | 'active' | 'azm'>('steps');
   const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month'>('week');
   const [anchorDate, setAnchorDate] = useState(() => formatLocalDateOnly(new Date()));
-  const [timeSeries, setTimeSeries] = useState<FitbitTimeSeries | null>(null);
+  const [timeSeries, setTimeSeries] = useState<GoogleHealthTimeSeries | null>(null);
   const [timeSeriesLoading, setTimeSeriesLoading] = useState(false);
   const [timeSeriesMessage, setTimeSeriesMessage] = useState('');
   const [manualActivityEntries, setManualActivityEntries] = useState<ManualActivityEntry[]>([]);
@@ -121,29 +123,32 @@ export default function ActivityPage() {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }), [token]);
 
-  const checkFitbitStatus = useCallback(async () => {
+  const checkGoogleHealthStatus = useCallback(async () => {
     try {
-      setFitbitLoading(true);
-      const res = await fetch(`${API_URL}/api/fitbit/status`, { headers });
+      setGoogleHealthLoading(true);
+      const res = await fetch(`${API_URL}/api/google-health/status`, { headers });
       const data = await res.json();
       if (data.success && data.connected) {
-        setFitbitConnected(true);
-        setFitbitData(data.data ?? null);
+        setGoogleHealthConnected(true);
+        setGoogleHealthEmail(data.google_email ?? null);
+        setGoogleHealthData(data.data ?? null);
       } else {
-        setFitbitConnected(false);
-        setFitbitData(null);
+        setGoogleHealthConnected(false);
+        setGoogleHealthEmail(null);
+        setGoogleHealthData(null);
         if (selectedMetric === 'azm') {
           setSelectedMetric('steps');
         }
       }
     } catch {
-      setFitbitConnected(false);
-      setFitbitData(null);
+      setGoogleHealthConnected(false);
+      setGoogleHealthEmail(null);
+      setGoogleHealthData(null);
       if (selectedMetric === 'azm') {
         setSelectedMetric('steps');
       }
     } finally {
-      setFitbitLoading(false);
+      setGoogleHealthLoading(false);
     }
   }, [headers, selectedMetric]);
 
@@ -151,15 +156,15 @@ export default function ActivityPage() {
     metric: 'steps' | 'active' | 'azm',
     period: 'day' | 'week' | 'month'
   ) => {
-    if (metric === 'azm' && !fitbitConnected) {
+    if (metric === 'azm' && !googleHealthConnected) {
       setTimeSeries(null);
-      setTimeSeriesMessage('Connect Fitbit to view Active Zone Minutes.');
+      setTimeSeriesMessage('Connect Google Health to view Active Zone Minutes.');
       return;
     }
 
     try {
       setTimeSeriesLoading(true);
-      const res = await fetch(`${API_URL}/api/fitbit/timeseries?metric=${metric}&period=${period}&anchorDate=${anchorDate}`, {
+      const res = await fetch(`${API_URL}/api/google-health/timeseries?metric=${metric}&period=${period}&anchorDate=${anchorDate}`, {
         headers,
         cache: 'no-store',
       });
@@ -177,7 +182,7 @@ export default function ActivityPage() {
     } finally {
       setTimeSeriesLoading(false);
     }
-  }, [anchorDate, fitbitConnected, headers]);
+  }, [anchorDate, googleHealthConnected, headers]);
 
   const loadManualActivity = useCallback(async () => {
     try {
@@ -190,66 +195,71 @@ export default function ActivityPage() {
   }, [headers, weekStart]);
 
   useEffect(() => {
-    void checkFitbitStatus();
+    void checkGoogleHealthStatus();
     void loadManualActivity();
-  }, [checkFitbitStatus, loadManualActivity]);
+  }, [checkGoogleHealthStatus, loadManualActivity]);
 
   useEffect(() => {
     void loadTimeSeries(selectedMetric, selectedPeriod);
-  }, [selectedMetric, selectedPeriod, fitbitConnected, anchorDate, loadTimeSeries]);
+  }, [selectedMetric, selectedPeriod, googleHealthConnected, anchorDate, loadTimeSeries]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const fitbitStatus = params.get('fitbit');
+    const healthStatus = params.get('google_health');
 
-    if (fitbitStatus === 'connected') {
-      setSyncMessage('Fitbit connected successfully!');
-      void checkFitbitStatus();
+    if (healthStatus === 'connected') {
+      setSyncMessage('Google Health connected successfully!');
+      void checkGoogleHealthStatus();
       window.history.replaceState({}, '', '/activity');
-    } else if (fitbitStatus === 'already_linked') {
-      setSyncMessage('This Fitbit account is already linked to a different ThriveScore account.');
+    } else if (healthStatus === 'partial') {
+      setSyncMessage('Google Health connected with partial permissions. Some metrics may need manual entry.');
+      void checkGoogleHealthStatus();
       window.history.replaceState({}, '', '/activity');
-    } else if (fitbitStatus === 'error') {
-      setSyncMessage('Fitbit connection failed. Please try again.');
+    } else if (healthStatus === 'no_permissions') {
+      setSyncMessage('No Google Health data permissions were granted. Select at least one permission to connect.');
+      window.history.replaceState({}, '', '/activity');
+    } else if (healthStatus === 'already_linked') {
+      setSyncMessage('This Google Health account is already linked to a different ThriveScore account.');
+      window.history.replaceState({}, '', '/activity');
+    } else if (healthStatus === 'error') {
+      setSyncMessage('Google Health connection failed. Please try again.');
       window.history.replaceState({}, '', '/activity');
     }
-  }, [checkFitbitStatus]);
+  }, [checkGoogleHealthStatus]);
 
-  const connectFitbit = async () => {
+  const connectGoogleHealth = async () => {
     try {
-      setSyncMessage('Redirecting to Fitbit...');
-      const res = await fetch(`${API_URL}/api/fitbit/auth-url`, {
+      setSyncMessage('Redirecting to Google Health...');
+      const res = await fetch(`${API_URL}/api/google-health/auth-url`, {
         headers,
         cache: 'no-store',
       });
       const data = await res.json();
       if (!res.ok || !data.success || !data.authUrl) {
-        throw new Error(data.message || 'Failed to start Fitbit connection');
+        throw new Error(data.message || 'Failed to start Google Health connection');
       }
       window.location.assign(data.authUrl);
     } catch (err) {
-      setSyncMessage(err instanceof Error ? err.message : 'Could not connect to Fitbit. Please try again.');
+      setSyncMessage(err instanceof Error ? err.message : 'Could not connect to Google Health. Please try again.');
     }
   };
 
-  const switchFitbitAccount = () => {
-    window.open('https://dev.fitbit.com/logout', '_blank', 'noopener,noreferrer');
-    setSyncMessage('Fitbit logout opened in a new tab. Sign out there, then return here and connect again.');
-  };
-
-  const syncFitbit = async () => {
+  const syncGoogleHealth = async () => {
     try {
       setSyncing(true);
       setSyncMessage('');
-      const res = await fetch(`${API_URL}/api/fitbit/sync`, {
+      const res = await fetch(`${API_URL}/api/google-health/sync`, {
         method: 'POST',
         headers,
         body: JSON.stringify({}),
       });
       const data = await res.json();
       if (data.success) {
-        setFitbitData(data.data);
-        setSyncMessage(`Synced current week — ${data.data.steps.toLocaleString()} steps · ${data.data.activeMinutes} active mins`);
+        setGoogleHealthData(data.data);
+        const warningText = Array.isArray(data.data?.warnings) && data.data.warnings.length
+          ? ` (${data.data.warnings.join(' ')})`
+          : '';
+        setSyncMessage(`Synced current week — ${data.data.steps.toLocaleString()} steps · ${data.data.activeMinutes} active mins${warningText}`);
         await loadManualActivity();
         await loadTimeSeries(selectedMetric, selectedPeriod);
       } else {
@@ -262,24 +272,25 @@ export default function ActivityPage() {
     }
   };
 
-  const disconnectFitbit = async () => {
+  const disconnectGoogleHealth = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/fitbit/disconnect`, {
+      const res = await fetch(`${API_URL}/api/google-health/disconnect`, {
         method: 'DELETE',
         headers,
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.message || 'Failed to disconnect Fitbit');
+        throw new Error(data.message || 'Failed to disconnect Google Health');
       }
-      setFitbitConnected(false);
-      setFitbitData(null);
+      setGoogleHealthConnected(false);
+      setGoogleHealthEmail(null);
+      setGoogleHealthData(null);
       if (selectedMetric === 'azm') {
         setSelectedMetric('steps');
       }
-      setSyncMessage('Fitbit disconnected from this app. Reconnect may complete automatically if Fitbit is still signed in in this browser.');
+      setSyncMessage('Google Health disconnected from this app.');
     } catch {
-      setSyncMessage('Could not disconnect Fitbit. Please try again.');
+      setSyncMessage('Could not disconnect Google Health. Please try again.');
     }
   };
 
@@ -300,7 +311,7 @@ export default function ActivityPage() {
   };
 
   const totalManualMinutes = manualActivityEntries.reduce((sum, entry) => sum + Number(entry.mvpa_minutes || 0), 0);
-  const activityTotal = fitbitConnected && fitbitData ? fitbitData.activeMinutes : totalManualMinutes;
+  const activityTotal = googleHealthConnected && googleHealthData ? googleHealthData.activeMinutes : totalManualMinutes;
   const goalPercent = Math.min(100, Math.round((activityTotal / 150) * 100));
   const chartGoal = selectedMetric === 'steps' ? 10000 : selectedMetric === 'active' ? 150 : undefined;
   const chartLabel = selectedMetric === 'steps'
@@ -336,7 +347,7 @@ export default function ActivityPage() {
         <div className="mb-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Activity</p>
           <h1 className="mt-1.5 text-[1.75rem] font-semibold tracking-tight text-stone-950">Activity</h1>
-          <p className="mt-1 text-xs sm:text-sm text-stone-500">Fitbit sync with manual fallback for the current week.</p>
+          <p className="mt-1 text-xs sm:text-sm text-stone-500">Google Health sync (Fitbit &amp; Wear OS) with manual fallback for the current week.</p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_0.8fr]">
@@ -344,88 +355,73 @@ export default function ActivityPage() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex min-w-0 items-start gap-3">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
-                  fitbitConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'
+                  googleHealthConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'
                 }`}>
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="8" cy="7" r="1.2" />
-                    <circle cx="12" cy="7" r="1.2" />
-                    <circle cx="16" cy="7" r="1.2" />
-                    <circle cx="10" cy="11" r="1.2" />
-                    <circle cx="14" cy="11" r="1.2" />
-                    <circle cx="8" cy="15" r="1.2" />
-                    <circle cx="12" cy="15" r="1.2" />
-                    <circle cx="16" cy="15" r="1.2" />
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s-7-4.35-9-9.5C1.5 7.5 4.5 4 8 4c2 0 3.5 1 4 2.5C12.5 5 14 4 16 4c3.5 0 6.5 3.5 5 7.5-2 5.15-9 9.5-9 9.5Z" />
                   </svg>
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Fitbit</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-400">Google Health</p>
                     <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
-                      fitbitLoading
+                      googleHealthLoading
                         ? 'bg-stone-100 text-stone-600'
-                        : fitbitConnected
+                        : googleHealthConnected
                           ? 'bg-emerald-100 text-emerald-700'
                           : 'bg-stone-100 text-stone-600'
                     }`}>
-                      {fitbitLoading ? 'Checking' : fitbitConnected ? 'Connected' : 'Manual'}
+                      {googleHealthLoading ? 'Checking' : googleHealthConnected ? 'Connected' : 'Manual'}
                     </span>
                   </div>
                   <h2 className="mt-1 text-lg font-semibold tracking-tight text-stone-950">
-                    {fitbitLoading ? 'Checking Fitbit state' : fitbitConnected ? 'Fitbit is linked' : 'Connect Fitbit'}
+                    {googleHealthLoading ? 'Checking Google Health state' : googleHealthConnected ? 'Google Health is linked' : 'Connect Google Health'}
                   </h2>
                   <p className="mt-1 max-w-xl text-xs leading-5 sm:text-sm text-stone-500">
-                    {fitbitLoading
-                      ? 'Loading your current Fitbit connection.'
-                      : fitbitConnected
-                        ? syncMessage || 'Sync current-week activity and steps from Fitbit.'
-                        : syncMessage || 'Use Fitbit as the primary source. Manual entries fill days Fitbit does not cover.'}
+                    {googleHealthLoading
+                      ? 'Loading your current Google Health connection.'
+                      : googleHealthConnected
+                        ? syncMessage || (googleHealthEmail ? `Linked to ${googleHealthEmail}. Sync current-week activity and steps from Google Health.` : 'Sync current-week activity and steps from Google Health.')
+                        : syncMessage || 'Connect Google Health to sync Fitbit, Pixel Watch, or Wear OS activity. Manual entries fill any uncovered days.'}
                   </p>
                 </div>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
-                {fitbitLoading ? (
+                {googleHealthLoading ? (
                   <button disabled className="rounded-xl bg-stone-200 px-3.5 py-2.5 text-xs font-semibold text-stone-500 sm:text-sm">
                     Checking...
                   </button>
-                ) : fitbitConnected ? (
+                ) : googleHealthConnected ? (
                   <>
                     <button
-                      onClick={syncFitbit}
+                      onClick={syncGoogleHealth}
                       disabled={syncing}
                       className="rounded-xl bg-stone-900 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-stone-800 disabled:opacity-50 sm:text-sm"
                     >
-                      {syncing ? 'Syncing...' : 'Sync Fitbit'}
+                      {syncing ? 'Syncing...' : 'Sync Google Health'}
                     </button>
                     <button
-                      onClick={disconnectFitbit}
+                      onClick={disconnectGoogleHealth}
                       className="rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 sm:text-sm"
                     >
                       Disconnect
                     </button>
                   </>
                 ) : (
-                  <>
-                    <button
-                      onClick={connectFitbit}
-                      className="rounded-xl bg-blue-700 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-blue-800 sm:text-sm"
-                    >
-                      Connect Fitbit
-                    </button>
-                    <button
-                      onClick={switchFitbitAccount}
-                      className="rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 sm:text-sm"
-                    >
-                      Use Different Fitbit
-                    </button>
-                  </>
+                  <button
+                    onClick={connectGoogleHealth}
+                    className="rounded-xl bg-blue-700 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-blue-800 sm:text-sm"
+                  >
+                    Connect Google Health
+                  </button>
                 )}
               </div>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[
-                { label: 'Status', value: fitbitLoading ? 'Checking' : fitbitConnected ? 'Connected' : 'Manual' },
-                { label: 'Steps', value: fitbitConnected && fitbitData ? fitbitData.steps.toLocaleString() : 'Not synced' },
+                { label: 'Status', value: googleHealthLoading ? 'Checking' : googleHealthConnected ? 'Connected' : 'Manual' },
+                { label: 'Steps', value: googleHealthConnected && googleHealthData ? googleHealthData.steps.toLocaleString() : 'Not synced' },
                 { label: 'Active', value: `${activityTotal} min` },
                 { label: 'Goal', value: `${goalPercent}%` },
               ].map((item) => (
@@ -458,13 +454,13 @@ export default function ActivityPage() {
                   <div>
                     <div className="text-sm font-semibold text-stone-900">Primary source</div>
                     <div className="mt-0.5 text-xs text-stone-500">
-                      {fitbitConnected ? 'Fitbit leads. Manual fills missing days.' : 'Manual logging is active.'}
+                      {googleHealthConnected ? 'Google Health leads. Manual fills missing days.' : 'Manual logging is active.'}
                     </div>
                   </div>
                   <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
-                    fitbitConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-700'
+                    googleHealthConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-700'
                   }`}>
-                    {fitbitConnected ? 'Fitbit' : 'Manual'}
+                    {googleHealthConnected ? 'Google Health' : 'Manual'}
                   </span>
                 </div>
               </div>
@@ -478,10 +474,10 @@ export default function ActivityPage() {
                   </div>
                   <div className="rounded-xl bg-white px-3 py-2">
                     <div className="text-lg font-semibold tracking-tight text-stone-950">
-                      {fitbitConnected && fitbitData ? fitbitData.steps.toLocaleString() : totalManualMinutes.toString()}
+                      {googleHealthConnected && googleHealthData ? googleHealthData.steps.toLocaleString() : totalManualMinutes.toString()}
                     </div>
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-400">
-                      {fitbitConnected ? 'Steps' : 'Manual total'}
+                      {googleHealthConnected ? 'Steps' : 'Manual total'}
                     </div>
                   </div>
                 </div>
@@ -490,7 +486,7 @@ export default function ActivityPage() {
               <div className="rounded-[18px] border border-stone-200 bg-stone-50 p-3">
                 <div className="text-sm font-semibold text-stone-900">Scoring note</div>
                 <div className="mt-1 text-xs leading-5 text-stone-500">
-                  Weekly activity score uses current-week total minutes. Fitbit data is used when present for a given day; manual entries cover the rest.
+                  Weekly activity score uses current-week total minutes. Google Health data is used when present for a given day; manual entries cover the rest.
                 </div>
               </div>
 
@@ -557,7 +553,7 @@ export default function ActivityPage() {
                   <button
                     key={item.key}
                     onClick={() => setSelectedMetric(item.key)}
-                    disabled={item.key === 'azm' && !fitbitConnected}
+                    disabled={item.key === 'azm' && !googleHealthConnected}
                     className={`rounded-full px-4 py-2 transition ${
                       selectedMetric === item.key
                         ? 'bg-[#dff8f1] text-[#0f766e]'
@@ -658,7 +654,7 @@ export default function ActivityPage() {
                       <div className="rounded-[18px] border border-stone-200 bg-stone-50 px-4 py-3">
                         <div className="text-[11px] uppercase tracking-[0.2em] text-stone-400">Source</div>
                         <div className="mt-1 text-sm font-medium sm:text-[15px]">
-                          {selectedMetric === 'azm' ? 'Fitbit AZM' : selectedMetric === 'steps' ? 'Stored daily steps' : 'Stored active min'}
+                          {selectedMetric === 'azm' ? 'Google Health AZM' : selectedMetric === 'steps' ? 'Stored daily steps' : 'Stored active min'}
                         </div>
                       </div>
                     </div>
@@ -674,7 +670,7 @@ export default function ActivityPage() {
           )}
         </div>
 
-        {!fitbitConnected && (
+        {!googleHealthConnected && (
           <div className="mt-6">
             <ManualActivityInput
               weekStart={weekStart}

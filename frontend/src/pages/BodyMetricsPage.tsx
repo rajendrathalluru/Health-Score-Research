@@ -18,10 +18,10 @@ function formatLocalDateOnly(date: Date) {
 
 export default function BodyMetricsPage() {
   const [bodyMeasurements, setBodyMeasurements] = useState<BodyMeasurements>({ weightKg: null });
-  const [fitbitConnected, setFitbitConnected] = useState(false);
-  const [fitbitWeightKg, setFitbitWeightKg] = useState<number | null>(null);
-  const [fitbitSyncing, setFitbitSyncing] = useState(false);
-  const [fitbitMessage, setFitbitMessage] = useState('');
+  const [googleHealthConnected, setGoogleHealthConnected] = useState(false);
+  const [googleHealthWeightKg, setGoogleHealthWeightKg] = useState<number | null>(null);
+  const [googleHealthSyncing, setGoogleHealthSyncing] = useState(false);
+  const [googleHealthMessage, setGoogleHealthMessage] = useState('');
 
   const token = localStorage.getItem('token');
   const today = formatLocalDateOnly(new Date());
@@ -45,30 +45,30 @@ export default function BodyMetricsPage() {
     }
   }, [headers, today]);
 
-  const loadFitbitStatus = useCallback(async () => {
+  const loadGoogleHealthStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/fitbit/status`, { headers });
+      const res = await fetch(`${API_URL}/api/google-health/status`, { headers });
       const data = await res.json();
       if (data.success && data.connected) {
-        setFitbitConnected(true);
-        setFitbitWeightKg(data.data?.weightKg ?? null);
+        setGoogleHealthConnected(true);
+        setGoogleHealthWeightKg(data.data?.weightKg ?? null);
       } else {
-        setFitbitConnected(false);
-        setFitbitWeightKg(null);
+        setGoogleHealthConnected(false);
+        setGoogleHealthWeightKg(null);
       }
     } catch {
-      setFitbitConnected(false);
-      setFitbitWeightKg(null);
+      setGoogleHealthConnected(false);
+      setGoogleHealthWeightKg(null);
     }
   }, [headers]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadBodyMeasurements();
-      void loadFitbitStatus();
+      void loadGoogleHealthStatus();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [loadBodyMeasurements, loadFitbitStatus]);
+  }, [loadBodyMeasurements, loadGoogleHealthStatus]);
 
   const saveBodyMeasurements = async ({ weightKg }: BodyMeasurements) => {
     const res = await fetch(`${API_URL}/api/measurements/log`, {
@@ -86,11 +86,11 @@ export default function BodyMetricsPage() {
     setBodyMeasurements({ weightKg });
   };
 
-  const syncFitbitWeight = async () => {
+  const syncGoogleHealthWeight = async () => {
     try {
-      setFitbitSyncing(true);
-      setFitbitMessage('');
-      const res = await fetch(`${API_URL}/api/fitbit/sync`, {
+      setGoogleHealthSyncing(true);
+      setGoogleHealthMessage('');
+      const res = await fetch(`${API_URL}/api/google-health/sync`, {
         method: 'POST',
         headers,
         body: JSON.stringify({}),
@@ -98,21 +98,21 @@ export default function BodyMetricsPage() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        throw new Error(data.message || data.error || 'Could not sync Fitbit weight');
+        throw new Error(data.message || data.error || 'Could not sync Google Health weight');
       }
 
       const nextWeightKg = data.data?.weightKg ?? null;
-      setFitbitWeightKg(nextWeightKg);
+      setGoogleHealthWeightKg(nextWeightKg);
       if (nextWeightKg !== null) {
         setBodyMeasurements((current) => ({ ...current, weightKg: nextWeightKg }));
-        setFitbitMessage('Fitbit weight synced. Your latest scale weight is now reflected here.');
+        setGoogleHealthMessage('Google Health weight synced. Your latest scale weight is now reflected here.');
       } else {
-        setFitbitMessage('Fitbit synced, but no scale weight was available for today yet.');
+        setGoogleHealthMessage('Google Health synced, but no scale weight was available yet.');
       }
     } catch (error) {
-      setFitbitMessage(error instanceof Error ? error.message : 'Could not sync Fitbit weight right now.');
+      setGoogleHealthMessage(error instanceof Error ? error.message : 'Could not sync Google Health weight right now.');
     } finally {
-      setFitbitSyncing(false);
+      setGoogleHealthSyncing(false);
     }
   };
 
@@ -159,46 +159,46 @@ export default function BodyMetricsPage() {
               <div className="rounded-[18px] border border-stone-200 bg-stone-50 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-stone-900">Fitbit scale weight</div>
+                    <div className="text-sm font-semibold text-stone-900">Google Health scale weight</div>
                     <div className="mt-1 text-xs leading-5 text-stone-500">
-                      If your Aria Air has synced to Fitbit, we can pull today&apos;s weight into this page.
+                      If your Fitbit Aria or smart scale has synced to Google Health, we can pull your latest weight into this page.
                     </div>
                   </div>
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                    fitbitConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-600'
+                    googleHealthConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-600'
                   }`}>
-                    {fitbitConnected ? 'Connected' : 'Not connected'}
+                    {googleHealthConnected ? 'Connected' : 'Not connected'}
                   </span>
                 </div>
 
                 <div className="mt-3 flex items-end justify-between gap-3">
                   <div>
                     <div className="text-xl font-semibold tracking-tight text-stone-950">
-                      {fitbitWeightKg !== null ? `${kgToLb(fitbitWeightKg)?.toFixed(1)} lb` : 'No Fitbit weight yet'}
+                      {googleHealthWeightKg !== null ? `${kgToLb(googleHealthWeightKg)?.toFixed(1)} lb` : 'No Google Health weight yet'}
                     </div>
-                    <div className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-400">Latest Fitbit weight</div>
+                    <div className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-400">Latest Google Health weight</div>
                   </div>
 
-                  {fitbitConnected ? (
+                  {googleHealthConnected ? (
                     <button
-                      onClick={() => void syncFitbitWeight()}
-                      disabled={fitbitSyncing}
+                      onClick={() => void syncGoogleHealthWeight()}
+                      disabled={googleHealthSyncing}
                       className="rounded-xl bg-stone-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-stone-800 disabled:opacity-60 sm:text-sm"
                     >
-                      {fitbitSyncing ? 'Syncing…' : 'Sync Fitbit Weight'}
+                      {googleHealthSyncing ? 'Syncing…' : 'Sync Google Health Weight'}
                     </button>
                   ) : (
                     <Link
                       to="/activity"
                       className="rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 sm:text-sm"
                     >
-                      Connect Fitbit
+                      Connect Google Health
                     </Link>
                   )}
                 </div>
 
-                {fitbitMessage && (
-                  <div className="mt-3 text-xs text-stone-600">{fitbitMessage}</div>
+                {googleHealthMessage && (
+                  <div className="mt-3 text-xs text-stone-600">{googleHealthMessage}</div>
                 )}
               </div>
 

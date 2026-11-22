@@ -94,7 +94,7 @@ export default function ProfilePage() {
   const [saving, setSaving]   = useState(false);
   const [saved, setSaved]     = useState(false);
   const [error, setError]     = useState<string | null>(null);
-  const [fitbitConnected, setFitbitConnected] = useState(false);
+  const [googleHealthConnected, setGoogleHealthConnected] = useState(false);
 
   const hydrate = useCallback((d: ProfileData) => {
     const height = cmToFeetInches(d.height_cm ?? null);
@@ -126,20 +126,20 @@ export default function ProfilePage() {
     } finally { setLoading(false); }
   }, [hdrs, hydrate]);
 
-  const fetchFitbitStatus = useCallback(async () => {
+  const fetchGoogleHealthStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/fitbit/status`, { headers: hdrs });
+      const res = await fetch(`${API}/google-health/status`, { headers: hdrs });
       const data = await res.json();
-      setFitbitConnected(Boolean(data.success && data.connected));
+      setGoogleHealthConnected(Boolean(data.success && data.connected));
     } catch {
-      setFitbitConnected(false);
+      setGoogleHealthConnected(false);
     }
   }, [hdrs]);
 
   useEffect(() => {
     void fetchProfile();
-    void fetchFitbitStatus();
-  }, [fetchFitbitStatus, fetchProfile]);
+    void fetchGoogleHealthStatus();
+  }, [fetchGoogleHealthStatus, fetchProfile]);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -218,7 +218,7 @@ export default function ProfilePage() {
                 <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] bg-stone-900 text-3xl font-semibold text-white shadow-sm ring-1 ring-stone-200">
                   {form.name ? initials(form.name) : '?'}
                 </div>
-                <span className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-4 border-white ${fitbitConnected ? 'bg-emerald-400' : 'bg-stone-300'}`} />
+                <span className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-4 border-white ${googleHealthConnected ? 'bg-emerald-400' : 'bg-stone-300'}`} />
               </div>
 
               <div className="min-w-0 flex-1">
@@ -260,11 +260,11 @@ export default function ProfilePage() {
                     </span>
                   )}
                   <span className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                    fitbitConnected
+                    googleHealthConnected
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                       : 'border-stone-200 bg-stone-50 text-stone-500'
                   }`}>
-                    {fitbitConnected ? 'Fitbit connected' : 'Fitbit not connected'}
+                    {googleHealthConnected ? 'Google Health connected' : 'Google Health not connected'}
                   </span>
                 </div>
               </div>

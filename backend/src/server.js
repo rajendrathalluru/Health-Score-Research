@@ -14,7 +14,7 @@ import authRoutes from './routes/auth.js';
 import testRoutes from './routes/test.js';
 import measurementRoutes from './routes/measurements.js';
 import progressRoutes from './routes/progress.js';
-import fitbitRoutes from './routes/fitbit.js';
+import googleHealthRoutes from './routes/googleHealth.js';
 import weeklyscoreRoutes from './routes/weeklyScore.js';  
 import profileRoutes from './routes/profile.js';
 
@@ -52,7 +52,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', testRoutes);
 app.use('/api/measurements', measurementRoutes);
 app.use('/api/progress', progressRoutes);
-app.use('/api/fitbit', fitbitRoutes);
+app.use('/api/google-health', googleHealthRoutes);
 app.use('/api/weekly-score', weeklyscoreRoutes); 
 app.use('/api/profile', profileRoutes);
 
