@@ -262,6 +262,24 @@ export default function WelcomePage() {
             </div>
           </aside>
         </main>
+
+        <footer className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-stone-900/10 pt-6 text-xs text-stone-600 sm:flex-row">
+          <p>© {new Date().getFullYear()} ThriveScore Tracker</p>
+          <div className="flex items-center gap-5">
+            <a
+              href="/privacy-policy"
+              className="font-medium text-stone-700 underline underline-offset-4 hover:text-stone-950"
+            >
+              Privacy Policy
+            </a>
+            <a
+              href="/terms-and-conditions"
+              className="font-medium text-stone-700 underline underline-offset-4 hover:text-stone-950"
+            >
+              Terms &amp; Conditions
+            </a>
+          </div>
+        </footer>
       </div>
     </div>
   );

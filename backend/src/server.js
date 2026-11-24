@@ -17,6 +17,7 @@ import progressRoutes from './routes/progress.js';
 import googleHealthRoutes from './routes/googleHealth.js';
 import weeklyscoreRoutes from './routes/weeklyScore.js';  
 import profileRoutes from './routes/profile.js';
+import legalRoutes from './routes/legal.js';
 
 
 
@@ -55,6 +56,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/google-health', googleHealthRoutes);
 app.use('/api/weekly-score', weeklyscoreRoutes); 
 app.use('/api/profile', profileRoutes);
+app.use(legalRoutes);
 
 if (hasFrontendBundle) {
   app.use(express.static(frontendDistPath, {

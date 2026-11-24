@@ -27,9 +27,19 @@ function getFrontendUrl() {
 function getGoogleHealthOAuthConfig() {
   const clientId = process.env.GOOGLE_HEALTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_HEALTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri =
-    process.env.GOOGLE_HEALTH_REDIRECT_URI ||
-    'http://localhost:3001/api/google-health/callback';
+
+  let redirectUri = process.env.GOOGLE_HEALTH_REDIRECT_URI?.trim();
+  if (!redirectUri && process.env.GOOGLE_REDIRECT_URI) {
+    try {
+      const origin = new URL(process.env.GOOGLE_REDIRECT_URI).origin;
+      redirectUri = `${origin}/api/google-health/callback`;
+    } catch {
+      // ignore invalid GOOGLE_REDIRECT_URI and fall back below
+    }
+  }
+  if (!redirectUri) {
+    redirectUri = 'http://localhost:3001/api/google-health/callback';
+  }
 
   return { clientId, clientSecret, redirectUri };
 }
@@ -316,9 +326,16 @@ async function fetchDailyRollUp(accessToken, dataType, startDateStr, endDateIncl
   do {
     const body = {
       range: {
-        start: { date: toCivilDateObject(startDateStr) },
-        end: { date: toCivilDateObject(exclusiveEndStr) },
+        start: {
+          date: toCivilDateObject(startDateStr),
+          time: { hours: 0, minutes: 0, seconds: 0, nanos: 0 },
+        },
+        end: {
+          date: toCivilDateObject(exclusiveEndStr),
+          time: { hours: 0, minutes: 0, seconds: 0, nanos: 0 },
+        },
       },
+      windowSizeDays: 1,
       ...(pageToken ? { pageToken } : {}),
     };
 
@@ -331,12 +348,9 @@ async function fetchDailyRollUp(accessToken, dataType, startDateStr, endDateIncl
       body: JSON.stringify(body),
     });
 
-    if (res.status === 401 || res.status === 403) {
-      return { ok: false, status: res.status, points: [] };
-    }
-
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) {
+      console.error(`[google-health] dailyRollUp ${dataType} failed (${res.status}):`, payload?.error?.message || JSON.stringify(payload));
       return {
         ok: false,
         status: res.status,
@@ -360,12 +374,9 @@ async function fetchLatestReconciledSample(accessToken, dataType) {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
-  if (res.status === 401 || res.status === 403) {
-    return { ok: false, status: res.status, sample: null };
-  }
-
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
+    console.error(`[google-health] reconcile ${dataType} failed (${res.status}):`, payload?.error?.message || JSON.stringify(payload));
     return {
       ok: false,
       status: res.status,

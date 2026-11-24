@@ -422,7 +422,7 @@ export default function ActivityPage() {
               <div className="mt-4 rounded-[18px] border border-blue-100 bg-blue-50/70 px-3.5 py-3 text-xs leading-5 text-stone-700">
                 <span className="font-semibold text-stone-900">Data access disclosure:</span>{' '}
                 Connecting Google Health requests read-only access to your <strong>activity</strong> (steps, moderate/vigorous active minutes, Active Zone Minutes) and <strong>body measurements</strong> (weight, height) solely to compute your weekly WCRF/AICR score and display your trends. We never sell your data or use it for ads. See our{' '}
-                <a href="/privacypolicy.html" target="_blank" rel="noreferrer" className="font-semibold text-blue-700 underline hover:text-blue-800">
+                <a href="/privacy-policy" target="_blank" rel="noreferrer" className="font-semibold text-blue-700 underline hover:text-blue-800">
                   Privacy Policy
                 </a>.
               </div>
